@@ -1,0 +1,21 @@
+{
+  "name": "nodereport",
+  "main": "build/Release/nodereport.node",
+  "version": "0.1.0",
+  "keywords": [
+    ""
+  ],
+  "description": "Diagnostic NodeReport",
+  "homepage": "https://github.com/nodejs/nodereport",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nodejs/nodereport.git"
+  },
+  "engines": {
+    "node": ">=4.0.0"
+  },
+  "dependencies": {
+    "nan": "^2.3.5"
+  },
+  "license": "MIT"
+}
