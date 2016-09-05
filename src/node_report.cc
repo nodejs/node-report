@@ -672,8 +672,13 @@ static void PrintResourceUsage(FILE *fp) {
   struct rusage stats;
   fprintf(fp, "\nProcess total resource usage:");
   if (getrusage(RUSAGE_SELF, &stats) == 0) {
+#ifdef __APPLE__
+    fprintf(fp,"\n  User mode CPU: %ld.%06d secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    fprintf(fp,"\n  Kernel mode CPU: %ld.%06d secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+#else
     fprintf(fp,"\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
     fprintf(fp,"\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+#endif
     fprintf(fp,"\n  Maximum resident set size: ");
     WriteInteger(fp,stats.ru_maxrss * 1024);
     fprintf(fp," bytes\n  Page faults: %ld (I/O required) %ld (no I/O required)", stats.ru_majflt, stats.ru_minflt);
