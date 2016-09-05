@@ -679,13 +679,14 @@ static void PrintResourceUsage(FILE *fp) {
     fprintf(fp," bytes\n  Page faults: %ld (I/O required) %ld (no I/O required)", stats.ru_majflt, stats.ru_minflt);
     fprintf(fp,"\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
   }
-
+#ifdef RUSAGE_THREAD
   fprintf(fp, "\n\nEvent loop thread resource usage:");
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
     fprintf(fp,"\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
     fprintf(fp,"\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
     fprintf(fp,"\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
   }
+#endif
   fprintf(fp, "\n");
 }
 #endif
