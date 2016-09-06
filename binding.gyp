@@ -7,7 +7,7 @@
       "conditions": [
         ["OS=='linux'", {
           "defines": [ "_GNU_SOURCE" ],
-          "cflags": [ "-g -O2 -std=c++11", ],
+          "cflags": [ "-g", "-O2", "-std=c++11", ],
         }],
         ["OS=='win'", {
           "libraries": [ "dbghelp.lib" ],
@@ -21,8 +21,8 @@
       "dependencies" : [ "nodereport" ],
       "copies": [
         {
-          'destination': '<(module_root_dir)',
-          'files': ['<(module_root_dir)/build/Release/nodereport.node']
+          "destination": "<(module_root_dir)",
+          "files": ["<(module_root_dir)/build/Release/nodereport.node"]
         }]
     },
   ],
