@@ -12,7 +12,7 @@ and calls to a Javascript API.
 Usage:
 
     npm install nodejs/nodereport
-    
+
     var nodereport = require('nodereport');
 
 By default, this will trigger a NodeReport to be written to the current
@@ -23,9 +23,9 @@ returned. The default filename includes the date, time, PID and a
 sequence number. Alternatively a filename can be specified on the API call.
 
     nodereport.triggerReport();
-    
+
     var filename = nodereport.triggerReport();
-        
+
     nodereport.triggerReport("myReportName");
 
 Content of the NodeReport in the initial implementation consists of a
@@ -43,19 +43,19 @@ API calls:
 
     export NODEREPORT_EVENTS=exception+fatalerror+signal
     nodereport.setEvents("exception+fatalerror+signal");
-    
+
     export NODEREPORT_COREDUMP=yes/no
     nodereport.setCoreDump("yes/no");
-    
+
     export NODEREPORT_SIGNAL=SIGUSR2/SIGQUIT
     nodereport.setSignal("SIGUSR2/SIGQUIT");
-    
+
     export NODEREPORT_FILENAME=stdout/stderr/<filename>
     nodereport.setFileName("stdout/stderr/<filename>");
-    
+
     export NODEREPORT_DIRECTORY=<full path>
     nodereport.setDirectory("<full path>");
-    
+
     export NODEREPORT_VERBOSE=yes/no
     nodereport.setVerbose("yes/no");
 
