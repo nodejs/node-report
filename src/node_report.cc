@@ -163,7 +163,7 @@ void ProcessNodeReportFileName(const char *args) {
     return;
   }
   if (strlen(args) > NR_MAXNAME) {
-    fprintf(stderr, "Supplied nodereport filename too long (max 48 characters)\n");
+    fprintf(stderr, "Supplied nodereport filename too long (max %d characters)\n", NR_MAXNAME);
     return;
   }
   strcpy(report_filename, args);
@@ -175,7 +175,7 @@ void ProcessNodeReportDirectory(const char *args) {
     return;
   }
   if (strlen(args) > NR_MAXPATH) {
-    fprintf(stderr, "Supplied nodereport directory path too long (max 2048 characters)\n");
+    fprintf(stderr, "Supplied nodereport directory path too long (max %d characters)\n", NR_MAXPATH);
     return;
   }
   strcpy(report_directory, args);
@@ -239,7 +239,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
 
   // Determine the required NodeReport filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
-  char filename[48] = "";
+  char filename[NR_MAXNAME + 1] = "";
   if (name != NULL && strlen(name) > 0) {
     // Filename was specified as API parameter, use that
     strcpy(filename, name);

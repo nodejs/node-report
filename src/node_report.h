@@ -19,8 +19,8 @@ using v8::Value;
 #define NR_JSAPICALL  0x08
 
 // Maximum file and path name lengths
-#define NR_MAXNAME 48
-#define NR_MAXPATH 2048
+#define NR_MAXNAME 64
+#define NR_MAXPATH 1024
 
 enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript};
 

@@ -36,28 +36,17 @@ static v8::Isolate* node_isolate;
  ******************************************************************************/
 NAN_METHOD(TriggerReport) {
   Nan::HandleScope scope;
-  v8::Isolate* isolate = Isolate::GetCurrent();
-  char filename[48] = "";
+  v8::Isolate* isolate = info.GetIsolate();
+  char filename[NR_MAXNAME + 1] = "";
 
   if (info[0]->IsString()) {
     // Filename parameter supplied
     Nan::Utf8String filename_parameter(info[0]->ToString());
-    if (filename_parameter.length() < 48) {
+    if (filename_parameter.length() < NR_MAXNAME) {
       strcpy(filename, *filename_parameter);
     } else {
-      Nan::ThrowSyntaxError("TriggerReport: filename parameter is too long (max 48 characters)");
+      Nan::ThrowSyntaxError("TriggerReport: filename parameter is too long");
     }
-  }
-  if (info[0]->IsFunction()) {
-    // Callback parameter supplied
-    Nan::Callback callback(info[0].As<Function>());
-    // Creates a new Object on the V8 heap
-    Local<Object> obj = Object::New(isolate);
-    obj->Set(String::NewFromUtf8(isolate, "number"), Number::New(isolate, 54));
-    Local<Value> argv[1];
-    argv[0] = obj;
-    // Invoke the callback, passing the object in argv
-    callback.Call(1, argv);
   }
 
   TriggerNodeReport(isolate, kJavaScript, "JavaScript API", "TriggerReport (nodereport/src/module.cc)", filename);
