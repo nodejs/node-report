@@ -11,6 +11,7 @@ inline void* ReportSignalThreadMain(void* unused);
 static int StartWatchdogThread(void *(*thread_main) (void* unused));
 static void RegisterSignalHandler(int signal, void (*handler)(int signal), bool reset_handler);
 static void SignalDump(int signo);
+static void SetupSignalHandler();
 #endif
 
 // Default nodereport option settings
@@ -45,7 +46,7 @@ NAN_METHOD(TriggerReport) {
     if (filename_parameter.length() < NR_MAXNAME) {
       strcpy(filename, *filename_parameter);
     } else {
-      Nan::ThrowSyntaxError("TriggerReport: filename parameter is too long");
+      Nan::ThrowSyntaxError("nodereport: filename parameter is too long");
     }
   }
 
@@ -80,12 +81,7 @@ NAN_METHOD(SetEvents) {
 #ifndef _WIN32
   // If NodeReport newly requested on external user signal set up watchdog thread and callbacks
   if ((nodereport_events & NR_SIGNAL) && !(previous_events & NR_SIGNAL)) {
-    uv_sem_init(&report_semaphore, 0);
-    if (StartWatchdogThread(ReportSignalThreadMain) == 0) {
-      uv_async_init(uv_default_loop(), &nodereport_trigger_async, SignalDumpAsyncCallback);
-      uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
-      RegisterSignalHandler(nodereport_signal, SignalDump, false);
-    }
+    SetupSignalHandler();
   }
 #endif
 }
@@ -149,10 +145,12 @@ bool OnUncaughtException(v8::Isolate* isolate) {
 #ifndef _WIN32
 static void SignalDumpInterruptCallback(Isolate *isolate, void *data) {
   if (report_signal != 0) {
-    fprintf(stderr,"SignalDumpInterruptCallback - handling signal\n");
+    if (nodereport_verbose) {
+      fprintf(stdout,"nodereport: SignalDumpInterruptCallback handling signal\n");
+    }
     if (nodereport_events & NR_SIGNAL) {
       if (nodereport_verbose) {
-        fprintf(stderr,"SignalDumpInterruptCallback - triggering NodeReport\n");
+        fprintf(stdout,"nodereport: SignalDumpInterruptCallback triggering NodeReport\n");
       }
       TriggerNodeReport(Isolate::GetCurrent(), kSignal_JS,
                         node::signo_string(*(static_cast<int *>(data))),
@@ -163,10 +161,12 @@ static void SignalDumpInterruptCallback(Isolate *isolate, void *data) {
 }
 static void SignalDumpAsyncCallback(uv_async_t* handle) {
   if (report_signal != 0) {
-    fprintf(stderr,"SignalDumpAsyncCallback - handling signal\n");
+    if (nodereport_verbose) {
+      fprintf(stdout,"nodereport: SignalDumpAsyncCallback handling signal\n");
+    }
     if (nodereport_events & NR_SIGNAL) {
       if (nodereport_verbose) {
-        fprintf(stderr,"SignalDumpAsyncCallback - triggering NodeReport\n");
+        fprintf(stdout,"nodereport: SignalDumpAsyncCallback triggering NodeReport\n");
       }
       size_t signo_data = reinterpret_cast<size_t>(handle->data);
       TriggerNodeReport(Isolate::GetCurrent(), kSignal_UV,
@@ -177,6 +177,15 @@ static void SignalDumpAsyncCallback(uv_async_t* handle) {
   }
 }
 
+/*******************************************************************************
+ * Utility functions for signal handling support (platforms except Windows)
+ *  - RegisterSignalHandler() - register a raw OS signal handler
+ *  - SignalDump() - implementation of raw OS signal handler
+ *  - StartWatchdogThread() - create a watchdog thread
+ *  - ReportSignalThreadMain() - implementation of watchdog thread
+ *  - SetupSignalHandler() - initialisation of signal handlers and threads
+ ******************************************************************************/
+ // Utility function to register an OS signal handler
 static void RegisterSignalHandler(int signal, void (*handler)(int signal), bool reset_handler = false) {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
@@ -194,12 +203,34 @@ static void SignalDump(int signo) {
   }
 }
 
+// Utility function to start the watchdog thread
+static int StartWatchdogThread(void *(*thread_main) (void* unused)) {
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+
+  pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  sigset_t sigmask;
+  sigfillset(&sigmask);
+  pthread_sigmask(SIG_SETMASK, &sigmask, &sigmask);
+  pthread_t thread;
+  const int err = pthread_create(&thread, &attr, thread_main, nullptr);
+  pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+  pthread_attr_destroy(&attr);
+  if (err != 0) {
+    fprintf(stderr, "nodereport: StartWatchdogThread pthread_create() failed: %s\n", strerror(err));
+    fflush(stderr);
+    return -err;
+  }
+  return 0;
+}
+
 // Watchdog thread implementation for signal-triggered NodeReport
 inline void* ReportSignalThreadMain(void* unused) {
   for (;;) {
     uv_sem_wait(&report_semaphore);
     if (nodereport_verbose) {
-      fprintf(stderr, "Signal %s received by nodereport module\n", node::signo_string(report_signal));
+      fprintf(stdout, "nodereport: signal %s received\n", node::signo_string(report_signal));
     }
     uv_mutex_lock(&node_isolate_mutex);
     if (auto isolate = node_isolate) {
@@ -215,25 +246,23 @@ inline void* ReportSignalThreadMain(void* unused) {
   return nullptr;
 }
 
-static int StartWatchdogThread(void *(*thread_main) (void* unused)) {
-  pthread_attr_t attr;
-  pthread_attr_init(&attr);
-
-  pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-  sigset_t sigmask;
-  sigfillset(&sigmask);
-  pthread_sigmask(SIG_SETMASK, &sigmask, &sigmask);
-  pthread_t thread;
-  const int err = pthread_create(&thread, &attr, thread_main, nullptr);
-  pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
-  pthread_attr_destroy(&attr);
-  if (err != 0) {
-    fprintf(stderr, "nodereport: pthread_create: %s\n", strerror(err));
-    fflush(stderr);
-    return -err;
+// Utility function to initialise signal handlers and threads
+static void SetupSignalHandler() {
+  int rc = uv_sem_init(&report_semaphore, 0);
+  if (rc != 0) {
+    fprintf(stderr, "nodereport: initialization failed, uv_sem_init() returned %d\n", rc);
+    Nan::ThrowError("nodereport: initialization failed, uv_sem_init() returned error\n");
   }
-  return 0;
+
+  if (StartWatchdogThread(ReportSignalThreadMain) == 0) {
+    rc = uv_async_init(uv_default_loop(), &nodereport_trigger_async, SignalDumpAsyncCallback);
+    if (rc != 0) {
+      fprintf(stderr, "nodereport: initialization failed, uv_sem_init() returned %d\n", rc);
+      Nan::ThrowError("nodereport: initialization failed, uv_sem_init() returned error\n");
+    }
+    uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
+    RegisterSignalHandler(nodereport_signal, SignalDump, false);
+  }
 }
 #endif
 
@@ -248,6 +277,10 @@ void Initialize(v8::Local<v8::Object> exports) {
 
   SetLoadTime();
 
+  const char* verbose_switch = getenv("NODEREPORT_VERBOSE");
+  if (verbose_switch != NULL) {
+    nodereport_verbose = ProcessNodeReportVerboseSwitch(verbose_switch);
+  }
   const char* trigger_events = getenv("NODEREPORT_EVENTS");
   if (trigger_events != NULL) {
     nodereport_events = ProcessNodeReportEvents(trigger_events);
@@ -268,10 +301,6 @@ void Initialize(v8::Local<v8::Object> exports) {
   if (directory_name != NULL) {
     ProcessNodeReportDirectory(directory_name);
   }
-  const char* verbose_switch = getenv("NODEREPORT_VERBOSE");
-  if (verbose_switch != NULL) {
-	  nodereport_verbose = ProcessNodeReportVerboseSwitch(verbose_switch);
-  }
 
   // If NodeReport requested for fatalerror, set up the V8 call-back
   if (nodereport_events & NR_FATALERROR) {
@@ -289,12 +318,7 @@ void Initialize(v8::Local<v8::Object> exports) {
 #ifndef _WIN32
   // If NodeReport requested on external user signal set up watchdog thread and callbacks
   if (nodereport_events & NR_SIGNAL) {
-    uv_sem_init(&report_semaphore, 0);
-    if (StartWatchdogThread(ReportSignalThreadMain) == 0) {
-      uv_async_init(uv_default_loop(), &nodereport_trigger_async, SignalDumpAsyncCallback);
-      uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
-      RegisterSignalHandler(nodereport_signal, SignalDump, false);
-    }
+    SetupSignalHandler();
   }
 #endif
 
@@ -315,10 +339,10 @@ void Initialize(v8::Local<v8::Object> exports) {
 
   if (nodereport_verbose) {
 #ifdef _WIN32
-    fprintf(stdout, "Initialized nodereport module, event flags: %#x core flag: %#x\n",
+    fprintf(stdout, "nodereport: initialization complete, event flags: %#x core flag: %#x\n",
             nodereport_events, nodereport_core);
 #else
-    fprintf(stdout, "Initialized nodereport module, event flags: %#x core flag: %#x signal flag: %#x\n",
+    fprintf(stdout, "nodereport: initialization complete, event flags: %#x core flag: %#x signal flag: %#x\n",
             nodereport_events, nodereport_core, nodereport_signal);
 #endif
   }
