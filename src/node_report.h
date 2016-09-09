@@ -35,4 +35,8 @@ unsigned int ProcessNodeReportVerboseSwitch(const char *args);
 
 void SetLoadTime();
 
+#ifdef _WIN32
+#define secure_getenv getenv
+#endif
+
 #endif  // SRC_NODE_REPORT_H_

@@ -1,6 +1,5 @@
-#include <nan.h>
-//#include <node.h>
 #include "node_report.h"
+#include <nan.h>
 
 // Internal/static function declarations
 static void OnFatalError(const char* location, const char* message);
@@ -189,26 +188,39 @@ static void RegisterSignalHandler(int signal, void (*handler)(int signal), bool 
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = handler;
+#ifndef __FreeBSD__
+  // Note: SA_RESETHAND doesn't work with some versions of FreeBSD's libthr. The
+  // workaround is to set the handler to SIG_DFL in the signal handler, see below
   sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
+#endif  //__FreeBSD__
   sigfillset(&sa.sa_mask);
   sigaction(signal, &sa, nullptr);
 }
 
 // Raw signal handler for triggering a NodeReport - runs on an arbitrary thread
 static void SignalDump(int signo) {
+#ifdef __FreeBSD__
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = SIG_DFL;
+  sigaction(signo, &sa, nullptr);
+#endif  // __FreeBSD__
   // Check atomic for NodeReport already pending, storing the signal number
   if (__sync_val_compare_and_swap(&report_signal, 0, signo) == 0) {
     uv_sem_post(&report_semaphore);  // Hand-off to watchdog thread
   }
 }
 
-// Utility function to start the watchdog thread
+// Utility function to start a watchdog thread - used for processing signals
 static int StartWatchdogThread(void *(*thread_main) (void* unused)) {
   pthread_attr_t attr;
   pthread_attr_init(&attr);
-
+  // Minimise the stack size, except on FreeBSD where the minimum is too low
+#ifndef __FreeBSD__
   pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
+#endif  // __FreeBSD__
   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
   sigset_t sigmask;
   sigfillset(&sigmask);
   pthread_sigmask(SIG_SETMASK, &sigmask, &sigmask);
@@ -263,7 +275,6 @@ static void SetupSignalHandler() {
 }
 #endif
 
-
 /*******************************************************************************
  * Native module initializer function, called when the module is require'd
  *
@@ -274,27 +285,27 @@ void Initialize(v8::Local<v8::Object> exports) {
 
   SetLoadTime();
 
-  const char* verbose_switch = getenv("NODEREPORT_VERBOSE");
+  const char* verbose_switch = secure_getenv("NODEREPORT_VERBOSE");
   if (verbose_switch != NULL) {
     nodereport_verbose = ProcessNodeReportVerboseSwitch(verbose_switch);
   }
-  const char* trigger_events = getenv("NODEREPORT_EVENTS");
+  const char* trigger_events = secure_getenv("NODEREPORT_EVENTS");
   if (trigger_events != NULL) {
     nodereport_events = ProcessNodeReportEvents(trigger_events);
   }
-  const char* core_dump_switch = getenv("NODEREPORT_COREDUMP");
+  const char* core_dump_switch = secure_getenv("NODEREPORT_COREDUMP");
   if (core_dump_switch != NULL) {
     nodereport_core = ProcessNodeReportCoreSwitch(core_dump_switch);
   }
-  const char* trigger_signal = getenv("NODEREPORT_SIGNAL");
+  const char* trigger_signal = secure_getenv("NODEREPORT_SIGNAL");
   if (trigger_signal != NULL) {
     nodereport_signal = ProcessNodeReportSignal(trigger_signal);
   }
-  const char* report_name = getenv("NODEREPORT_FILENAME");
+  const char* report_name = secure_getenv("NODEREPORT_FILENAME");
   if (report_name != NULL) {
     ProcessNodeReportFileName(report_name);
   }
-  const char* directory_name = getenv("NODEREPORT_DIRECTORY");
+  const char* directory_name = secure_getenv("NODEREPORT_DIRECTORY");
   if (directory_name != NULL) {
     ProcessNodeReportDirectory(directory_name);
   }
