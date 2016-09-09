@@ -60,7 +60,7 @@ NAN_METHOD(TriggerReport) {
  *
  ******************************************************************************/
 NAN_METHOD(SetEvents) {
-  Nan::Utf8String parameter(info[0]->ToString());
+  Nan::Utf8String parameter(info[0]);
   v8::Isolate* isolate = node_isolate;
   unsigned int previous_events = nodereport_events; // save previous settings
   nodereport_events = ProcessNodeReportEvents(*parameter);
@@ -86,23 +86,23 @@ NAN_METHOD(SetEvents) {
 #endif
 }
 NAN_METHOD(SetCoreDump) {
-  Nan::Utf8String parameter(info[0]->ToString());
+  Nan::Utf8String parameter(info[0]);
   nodereport_events = ProcessNodeReportCoreSwitch(*parameter);
 }
 NAN_METHOD(SetSignal) {
-  Nan::Utf8String parameter(info[0]->ToString());
+  Nan::Utf8String parameter(info[0]);
   nodereport_events = ProcessNodeReportSignal(*parameter);
 }
 NAN_METHOD(SetFileName) {
-  Nan::Utf8String parameter(info[0]->ToString());
+  Nan::Utf8String parameter(info[0]);
   ProcessNodeReportFileName(*parameter);
 }
 NAN_METHOD(SetDirectory) {
-  Nan::Utf8String parameter(info[0]->ToString());
+  Nan::Utf8String parameter(info[0]);
   ProcessNodeReportDirectory(*parameter);
 }
 NAN_METHOD(SetVerbose) {
-  Nan::Utf8String parameter(info[0]->ToString());
+  Nan::Utf8String parameter(info[0]);
   nodereport_verbose = ProcessNodeReportVerboseSwitch(*parameter);
 }
 
