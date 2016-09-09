@@ -35,7 +35,7 @@ unsigned int ProcessNodeReportVerboseSwitch(const char *args);
 
 void SetLoadTime();
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
 #define secure_getenv getenv
 #endif
 
