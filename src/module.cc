@@ -124,16 +124,16 @@ static void OnFatalError(const char* location, const char* message) {
   }
   fflush(stderr);
   if (nodereport_core) {
-    raise(SIGABRT); // core dump requested
+    raise(SIGABRT); // core dump requested (default)
   } else {
-    exit(0); // no core dump requested
+    exit(1); // user specified that no core dump is wanted, just exit
   }
 }
 
 bool OnUncaughtException(v8::Isolate* isolate) {
    // Trigger NodeReport if required
   if (nodereport_events & NR_EXCEPTION) {
-    TriggerNodeReport(Isolate::GetCurrent(), kException, "exception", "OnUncaughtException (nodereport/src/module.cc)", NULL);
+    TriggerNodeReport(isolate, kException, "exception", "OnUncaughtException (nodereport/src/module.cc)", NULL);
   } 
   if (nodereport_core) {
     return true;
@@ -152,8 +152,8 @@ static void SignalDumpInterruptCallback(Isolate *isolate, void *data) {
       if (nodereport_verbose) {
         fprintf(stdout,"nodereport: SignalDumpInterruptCallback triggering NodeReport\n");
       }
-      TriggerNodeReport(Isolate::GetCurrent(), kSignal_JS,
-                        node::signo_string(*(static_cast<int *>(data))),
+      TriggerNodeReport(isolate, kSignal_JS,
+                        node::signo_string(report_signal),
                         "node::SignalDumpInterruptCallback()", NULL);
     }
     report_signal = 0;
@@ -168,9 +168,8 @@ static void SignalDumpAsyncCallback(uv_async_t* handle) {
       if (nodereport_verbose) {
         fprintf(stdout,"nodereport: SignalDumpAsyncCallback triggering NodeReport\n");
       }
-      size_t signo_data = reinterpret_cast<size_t>(handle->data);
       TriggerNodeReport(Isolate::GetCurrent(), kSignal_UV,
-                        node::signo_string(static_cast<int>(signo_data)),
+                        node::signo_string(report_signal),
                         "node::SignalDumpAsyncCallback()", NULL);
     }
     report_signal = 0;
@@ -235,10 +234,8 @@ inline void* ReportSignalThreadMain(void* unused) {
     uv_mutex_lock(&node_isolate_mutex);
     if (auto isolate = node_isolate) {
       // Request interrupt callback for running JavaScript code
-      isolate->RequestInterrupt(SignalDumpInterruptCallback, &report_signal);
+      isolate->RequestInterrupt(SignalDumpInterruptCallback, NULL);
       // Event loop may be idle, so also request an async callback
-      size_t signo_data = static_cast<size_t>(report_signal);
-      nodereport_trigger_async.data = reinterpret_cast<void *>(signo_data);
       uv_async_send(&nodereport_trigger_async);
     }
     uv_mutex_unlock(&node_isolate_mutex);
