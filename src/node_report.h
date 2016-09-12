@@ -2,6 +2,11 @@
 #define SRC_NODE_REPORT_H_
 
 #include "nan.h"
+#if !defined(_WIN32) && !defined(__APPLE__)
+#include <features.h>
+#endif
+
+namespace nodereport {
 
 using v8::Isolate;
 using v8::Local;
@@ -35,8 +40,15 @@ unsigned int ProcessNodeReportVerboseSwitch(const char *args);
 
 void SetLoadTime();
 
-#if defined(_WIN32) || defined(__APPLE__)
+// secure_getenv() only available in glibc, revert to getenv() otherwise
+#if defined(__GLIBC__)
+#if !__GLIBC_PREREQ(2, 17)
 #define secure_getenv getenv
-#endif
+#endif  // !__GLIBC_PREREQ(2, 17)
+#else
+#define secure_getenv getenv
+#endif  // defined(__GLIBC__)
+
+}  // namespace nodereport
 
 #endif  // SRC_NODE_REPORT_H_

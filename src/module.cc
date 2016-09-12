@@ -1,6 +1,8 @@
 #include "node_report.h"
 #include <nan.h>
 
+namespace nodereport {
+
 // Internal/static function declarations
 static void OnFatalError(const char* location, const char* message);
 bool OnUncaughtException(v8::Isolate* isolate);
@@ -357,3 +359,6 @@ void Initialize(v8::Local<v8::Object> exports) {
 }
 
 NODE_MODULE(nodereport, Initialize)
+
+}  // namespace nodereport
+

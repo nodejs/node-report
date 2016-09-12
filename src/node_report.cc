@@ -30,6 +30,12 @@
 #include <sys/utsname.h>
 #endif
 
+#ifndef _WIN32
+extern char **environ;
+#endif
+
+namespace nodereport {
+
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
 using v8::Isolate;
@@ -55,7 +61,6 @@ static void WriteInteger(FILE *fp, size_t value);
 // Global variables
 static int seq = 0;  // sequence number for NodeReport filenames
 const char* v8_states[] = {"JS", "GC", "COMPILER", "OTHER", "EXTERNAL", "IDLE"};
-const char* TriggerNames[] = {"Exception", "FatalError", "SIGUSR2", "SIGQUIT", "JavaScript API"};
 static bool report_active = false; // recursion protection
 static char report_filename[NR_MAXNAME + 1] = "";
 static char report_directory[NR_MAXPATH + 1] = ""; // defaults to current working directory
@@ -63,7 +68,6 @@ static char report_directory[NR_MAXPATH + 1] = ""; // defaults to current workin
 static SYSTEMTIME loadtime_tm_struct; // module load time
 #else  // UNIX, OSX
 static struct tm loadtime_tm_struct; // module load time
-extern char **environ;
 #endif
 
 #if defined(_MSC_VER) && _MSC_VER < 1900
@@ -358,6 +362,9 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
   struct utsname os_info;
   if (uname(&os_info) == 0) {
     fprintf(fp,"\nOS version: %s %s %s",os_info.sysname, os_info.release, os_info.version);
+#if defined(__GLIBC__)
+    fprintf(fp,"\n(glibc: %d.%d)", __GLIBC__, __GLIBC_MINOR__);
+#endif
     fprintf(fp,"\nMachine: %s %s\n", os_info.nodename, os_info.machine);
   }
 #endif
@@ -794,3 +801,4 @@ static void WriteInteger(FILE *fp, size_t value) {
   }
 }
 
+}  // namespace nodereport
