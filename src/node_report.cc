@@ -170,7 +170,7 @@ void ProcessNodeReportFileName(const char *args) {
     fprintf(stderr, "Supplied nodereport filename too long (max %d characters)\n", NR_MAXNAME);
     return;
   }
-  strcpy(report_filename, args);
+  snprintf(report_filename, sizeof(report_filename), "%s", args);
 }
 
 void ProcessNodeReportDirectory(const char *args) {
@@ -182,7 +182,7 @@ void ProcessNodeReportDirectory(const char *args) {
     fprintf(stderr, "Supplied nodereport directory path too long (max %d characters)\n", NR_MAXPATH);
     return;
   }
-  strcpy(report_directory, args);
+  snprintf(report_directory, sizeof(report_directory), "%s", args);
 }
 
 unsigned int ProcessNodeReportVerboseSwitch(const char *args) {
@@ -246,13 +246,13 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
   char filename[NR_MAXNAME + 1] = "";
   if (name != NULL && strlen(name) > 0) {
     // Filename was specified as API parameter, use that
-    strcpy(filename, name);
+    snprintf(filename, sizeof(filename), "%s", name);
   } else if (strlen(report_filename) > 0) {
     // File name was supplied via start-up option, use that
-    strcpy(filename, report_filename);
+    snprintf(filename, sizeof(filename), "%s", report_filename);
   } else {
     // Construct the NodeReport filename, with timestamp, pid and sequence number
-    strcpy(filename, "NodeReport");
+    snprintf(filename, sizeof(filename), "%s", "NodeReport");
     seq++;
 
 #ifdef _WIN32
@@ -280,7 +280,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
     // Regular file. Append filename to directory path if one was specified
     if (strlen(report_directory) > 0) {
       char pathname[NR_MAXPATH + NR_MAXNAME + 1] = "";
-      strcpy(pathname, report_directory);
+      snprintf(pathname, sizeof(pathname), "%s", report_directory);
 #ifdef _WIN32
       strcat(pathname, "\\");
 #else
@@ -356,21 +356,21 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
   TCHAR  infoBuf[256];
   DWORD  bufCharCount = 256;
   if (GetComputerName(infoBuf, &bufCharCount)) {
-    fprintf(fp,"Machine name: %s %s\n", infoBuf);
+    fprintf(fp,"\nMachine name: %s %s\n", infoBuf);
   }
 #else
   struct utsname os_info;
   if (uname(&os_info) == 0) {
-    fprintf(fp,"\nOS version: %s %s %s",os_info.sysname, os_info.release, os_info.version);
+    fprintf(fp,"\nOS version: %s %s %s\n",os_info.sysname, os_info.release, os_info.version);
 #if defined(__GLIBC__)
-    fprintf(fp,"\n(glibc: %d.%d)", __GLIBC__, __GLIBC_MINOR__);
+    fprintf(fp,"(glibc: %d.%d)\n", __GLIBC__, __GLIBC_MINOR__);
 #endif
     fprintf(fp,"\nMachine: %s %s\n", os_info.nodename, os_info.machine);
   }
 #endif
 
   // Print native process ID
-  fprintf(fp, "\nProcess ID: %d\n", pid);
+  fprintf(fp, "Process ID: %d\n", pid);
   fflush(fp);
 
 // Print summary JavaScript stack trace
@@ -448,7 +448,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
 
   fprintf(stderr, "Node.js report completed\n");
   if (name != NULL) {
-    strcpy(name, filename);  // return the NodeReport file name
+    snprintf(name, NR_MAXNAME + 1, "%s", filename);  // return the NodeReport file name
   }
   report_active = false;
 }

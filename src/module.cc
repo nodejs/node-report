@@ -45,7 +45,7 @@ NAN_METHOD(TriggerReport) {
     // Filename parameter supplied
     Nan::Utf8String filename_parameter(info[0]->ToString());
     if (filename_parameter.length() < NR_MAXNAME) {
-      strcpy(filename, *filename_parameter);
+      snprintf(filename, sizeof(filename), "%s", *filename_parameter);
     } else {
       Nan::ThrowSyntaxError("nodereport: filename parameter is too long");
     }
