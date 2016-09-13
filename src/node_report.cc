@@ -44,7 +44,6 @@ using v8::Message;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
-
 using v8::V8;
 
 // Internal/static function declarations
@@ -297,20 +296,20 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
           tm_struct.wHour, tm_struct.wMinute, tm_struct.wSecond);
   fprintf(fp, "Module load time: %4d/%02d/%02d %02d:%02d:%02d\n",
           loadtime_tm_struct.wYear, loadtime_tm_struct.wMonth, loadtime_tm_struct.wDay,
-		  loadtime_tm_struct.wHour, loadtime_tm_struct.wMinute, loadtime_tm_struct.wSecond);
+          loadtime_tm_struct.wHour, loadtime_tm_struct.wMinute, loadtime_tm_struct.wSecond);
 #else  // UNIX, OSX
   fprintf(fp, "Dump event time:  %4d/%02d/%02d %02d:%02d:%02d\n",
           tm_struct.tm_year+1900, tm_struct.tm_mon+1, tm_struct.tm_mday,
           tm_struct.tm_hour, tm_struct.tm_min, tm_struct.tm_sec);
   fprintf(fp, "Module load time: %4d/%02d/%02d %02d:%02d:%02d\n",
-		  loadtime_tm_struct.tm_year+1900, loadtime_tm_struct.tm_mon+1, loadtime_tm_struct.tm_mday,
-		  loadtime_tm_struct.tm_hour, loadtime_tm_struct.tm_min, loadtime_tm_struct.tm_sec);
+          loadtime_tm_struct.tm_year+1900, loadtime_tm_struct.tm_mon+1, loadtime_tm_struct.tm_mday,
+          loadtime_tm_struct.tm_hour, loadtime_tm_struct.tm_min, loadtime_tm_struct.tm_sec);
 #endif
 
   // Print Node.js and deps component versions
   fprintf(fp, "\nNode.js version: %s\n", NODE_VERSION);
   fprintf(fp, "(v8: %s, libuv: %s, zlib: %s, ares: %s)\n",
-        V8::GetVersion(), uv_version_string(), ZLIB_VERSION, ARES_VERSION_STR);
+          V8::GetVersion(), uv_version_string(), ZLIB_VERSION, ARES_VERSION_STR);
 
   // Print OS name and level and machine name
 #ifdef _WIN32
@@ -332,10 +331,10 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
   } else {
     fprintf(fp,"Client\n");
   }
-  TCHAR  infoBuf[256];
-  DWORD  bufCharCount = 256;
-  if (GetComputerName(infoBuf, &bufCharCount)) {
-    fprintf(fp,"\nMachine name: %s %s\n", infoBuf);
+  TCHAR machine_name[256];
+  DWORD machine_name_size = 256;
+  if (GetComputerName(machine_name, &machine_name_size)) {
+    fprintf(fp,"\nMachine: %s %s\n", machine_name);
   }
 #else
   struct utsname os_info;
@@ -409,6 +408,9 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
 #endif
 
   // Print libuv handle summary (TODO: investigate failure on Windows)
+  // Note: documentation of the uv_print_all_handles() API says "This function
+  // is meant for ad hoc debugging, there is no API/ABI stability guarantee"
+  // http://docs.libuv.org/en/v1.x/misc.html
 #ifndef _WIN32
   fprintf(fp, "\n================================================================================");
   fprintf(fp, "\n==== Node.js libuv Handle Summary ==============================================\n");
@@ -449,9 +451,9 @@ static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate,
 
   isolate->GetStackSample(state, samples, arraysize(samples), &info);
   if (static_cast<size_t>(info.vm_state) < arraysize(v8_states)) {
-      fprintf(fp, "JavaScript VM state: %s\n\n", v8_states[info.vm_state]);
+    fprintf(fp, "JavaScript VM state: %s\n\n", v8_states[info.vm_state]);
   } else {
-      fprintf(fp, "JavaScript VM state: <unknown>\n\n");
+    fprintf(fp, "JavaScript VM state: <unknown>\n\n");
   }
   if (event == kSignal_UV) {
     fprintf(fp, "Signal received when event loop idle, no stack trace available\n");
@@ -464,7 +466,7 @@ static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate,
   }
   // Print the stack trace, adding in the pc values from GetStackSample() if available
   for (int i = 0; i < stack->GetFrameCount(); i++) {
-    if ((size_t)i < info.frames_count) {
+    if (static_cast<size_t>(i) < info.frames_count) {
       PrintStackFrame(fp, isolate, stack->GetFrame(i), i, samples[i]);
     } else {
       PrintStackFrame(fp, isolate, stack->GetFrame(i), i, NULL);
@@ -716,7 +718,7 @@ static void PrintSystemInformation(FILE *fp, Isolate* isolate) {
     env_var = *(environ + index++);
   }
 
-static struct {
+const static struct {
   const char* description;
   int id;
 } rlimit_strings[] = {
