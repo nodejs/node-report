@@ -49,6 +49,27 @@ void SetLoadTime();
 #define secure_getenv getenv
 #endif  // defined(__GLIBC__)
 
+// Emulate arraysize() on Windows pre Visual Studio 2015
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define arraysize(a) (sizeof(a) / sizeof(*a))
+#else
+template <typename T, size_t N>
+constexpr size_t arraysize(const T(&)[N]) { return N; }
+#endif  // defined( _MSC_VER ) && (_MSC_VER < 1900)
+
+// Emulate snprintf() on Windows pre Visual Studio 2015
+#if defined( _MSC_VER ) && (_MSC_VER < 1900)
+#include <stdarg.h>
+inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
+  va_list argp;
+  va_start(argp, format);
+  int ret = _vscprintf(format, argp);
+  vsnprintf_s(buffer, n, _TRUNCATE, format, argp);
+  va_end(argp);
+  return ret;
+}
+#endif  // defined( _MSC_VER ) && (_MSC_VER < 1900)
+
 }  // namespace nodereport
 
 #endif  // SRC_NODE_REPORT_H_

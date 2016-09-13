@@ -70,27 +70,6 @@ static SYSTEMTIME loadtime_tm_struct; // module load time
 static struct tm loadtime_tm_struct; // module load time
 #endif
 
-#if defined(_MSC_VER) && _MSC_VER < 1900
-// Workaround for arraysize() on Windows VS 2013.
-#define arraysize(a) (sizeof(a) / sizeof(*a))
-#else
-template <typename T, size_t N>
-constexpr size_t arraysize(const T(&)[N]) { return N; }
-#endif
-
-#if defined(_MSC_VER) && (_MSC_VER < 1900)
-// Workaround for snprintf() on Windows VS 2013`
-#include <stdarg.h>
-inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
-  va_list argp;
-  va_start(argp, format);
-  int ret = _vscprintf(format, argp);
-  vsnprintf_s(buffer, n, _TRUNCATE, format, argp);
-  va_end(argp);
-  return ret;
-}
-#endif
-
 /*******************************************************************************
  * Functions to process nodereport configuration options:
  *   Trigger event selection
