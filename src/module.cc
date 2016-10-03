@@ -264,12 +264,17 @@ static void SetupSignalHandler() {
     fprintf(stderr, "nodereport: initialization failed, uv_sem_init() returned %d\n", rc);
     Nan::ThrowError("nodereport: initialization failed, uv_sem_init() returned error\n");
   }
+  rc = uv_mutex_init(&node_isolate_mutex);
+  if (rc != 0) {
+    fprintf(stderr, "nodereport: initialization failed, uv_mutex_init() returned %d\n", rc);
+    Nan::ThrowError("nodereport: initialization failed, uv_mutex_init() returned error\n");
+  }
 
   if (StartWatchdogThread(ReportSignalThreadMain) == 0) {
     rc = uv_async_init(uv_default_loop(), &nodereport_trigger_async, SignalDumpAsyncCallback);
     if (rc != 0) {
-      fprintf(stderr, "nodereport: initialization failed, uv_sem_init() returned %d\n", rc);
-      Nan::ThrowError("nodereport: initialization failed, uv_sem_init() returned error\n");
+      fprintf(stderr, "nodereport: initialization failed, uv_async_init() returned %d\n", rc);
+      Nan::ThrowError("nodereport: initialization failed, uv_async_init() returned error\n");
     }
     uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
     RegisterSignalHandler(nodereport_signal, SignalDump, false);
