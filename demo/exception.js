@@ -27,7 +27,7 @@ http_server.listen(8080);
 console.log('exception.js: Node running');
 console.log('exception.js: Go to http://<machine>:8080/ or http://localhost:8080/');
 
-setTimeout(function(){
+setTimeout(function() {
     console.log('exception.js: test timeout expired, exiting.');
     process.exit(0);
 }, 60000);

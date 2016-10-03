@@ -1,4 +1,7 @@
 // Testcase for nodereport. Triggers and validates NodeReport files
+// 
+// Parameter(s): --save_log  (optional) preserves verbose log file
+//
 'use strict';
 
 const assert = require('assert');
@@ -14,8 +17,8 @@ if (process.platform === 'win32') {
   results = ['fail','fail','fail','fail'];
 }
 
-//TODO: switch off core dumps (using NODEREPORT_COREDUMP env var)
-const stdio_log = fs.openSync('./autorun.log', 'w');
+// Open a log file to record verbose test output
+const stdio_log = fs.openSync('./nodereport_test.log', 'w');
 
 // Test #1: Run child process to call API to generate a NodeReport
 console.log('autorun.js: running child process #1 to produce NodeReport on API call');
@@ -83,6 +86,11 @@ process.on('exit', function() {
   console.log('autorun.js: test results: ');
   for (var i = 0; i < results.length; i++) {
     console.log('\ttest', i+1, ': ', results[i]);
+  }
+  // Close the verbose output log file, and delete it unless --save_log was specified
+  fs.close(stdio_log);
+  if (!(process.argv[2] === '--save_log')) {
+    fs.unlink('./nodereport_test.log');
   }
 });
 

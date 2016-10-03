@@ -13,7 +13,7 @@ function my_listener(request, response) {
         break;
     case 1:
         response.writeHead(200,{"Content-Type": "text/plain"});
-        var filename = nodereport.triggerReport(); // Call the nodereport module to trigger a NodeReport 
+        var filename = nodereport.triggerReport(); // Call the nodereport module to trigger a NodeReport
         response.write("\n" + filename + " written - refresh page to close");
         response.end();
         break;

@@ -14,5 +14,8 @@
   "dependencies": {
     "nan": "^2.3.5"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/autorun.js"
+  }
 }

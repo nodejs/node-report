@@ -47,9 +47,11 @@ using v8::String;
 using v8::V8;
 
 // Internal/static function declarations
+static void PrintVersionInformation(FILE *fp);
+static void PrintJavaScriptStack(FILE *fp, Isolate* isolate, DumpEvent event, const char *location);
 static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event);
 static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame, int index, void *pc);
-static void PrintNativeBacktrace(FILE *fp);
+static void PrintNativeStack(FILE *fp);
 #ifndef _WIN32
 static void PrintResourceUsage(FILE *fp);
 #endif
@@ -192,7 +194,7 @@ void SetLoadTime() {
 #endif
 }
 /*******************************************************************************
- * API to write a NodeReport to file.
+ * Main API function to write a NodeReport to file.
  *
  * Parameters:
  *   Isolate* isolate
@@ -282,10 +284,10 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
     }
   }
 
-  // Print NodeReport title and event information
+  // File stream opened OK, now start printing the NodeReport content, starting with the title
+  // and header information (event, filename, timestamp and pid)
   fprintf(fp, "================================================================================\n");
   fprintf(fp, "==== NodeReport ================================================================\n");
-
   fprintf(fp, "\nEvent: %s, location: \"%s\"\n", message, location);
   fprintf(fp, "Filename: %s\n", filename);
 
@@ -305,96 +307,20 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
           loadtime_tm_struct.tm_year+1900, loadtime_tm_struct.tm_mon+1, loadtime_tm_struct.tm_mday,
           loadtime_tm_struct.tm_hour, loadtime_tm_struct.tm_min, loadtime_tm_struct.tm_sec);
 #endif
-
-  // Print Node.js and deps component versions
-  fprintf(fp, "\nNode.js version: %s\n", NODE_VERSION);
-  fprintf(fp, "(v8: %s, libuv: %s, zlib: %s, ares: %s)\n",
-          V8::GetVersion(), uv_version_string(), ZLIB_VERSION, ARES_VERSION_STR);
-
-  // Print OS name and level and machine name
-#ifdef _WIN32
-  fprintf(fp,"\nOS version: Windows ");
-#if defined(_MSC_VER) && (_MSC_VER >= 1900)
-  if (IsWindows1OrGreater()) {
-    fprintf(fp,"10 ");
-  } else
-#endif
-  if (IsWindows8OrGreater()) {
-    fprintf(fp,"8 ");
-  } else if (IsWindows7OrGreater()) {
-    fprintf(fp,"7 ");
-  } else if (IsWindowsXPOrGreater()) {
-    fprintf(fp,"XP ");
-  }
-  if (IsWindowsServer()) {
-    fprintf(fp,"Server\n");
-  } else {
-    fprintf(fp,"Client\n");
-  }
-  TCHAR machine_name[256];
-  DWORD machine_name_size = 256;
-  if (GetComputerName(machine_name, &machine_name_size)) {
-    fprintf(fp,"\nMachine: %s %s\n", machine_name);
-  }
-#else
-  struct utsname os_info;
-  if (uname(&os_info) == 0) {
-    fprintf(fp,"\nOS version: %s %s %s\n",os_info.sysname, os_info.release, os_info.version);
-#if defined(__GLIBC__)
-    fprintf(fp,"(glibc: %d.%d)\n", __GLIBC__, __GLIBC_MINOR__);
-#endif
-    fprintf(fp,"\nMachine: %s %s\n", os_info.nodename, os_info.machine);
-  }
-#endif
-
   // Print native process ID
   fprintf(fp, "Process ID: %d\n", pid);
   fflush(fp);
 
-// Print summary JavaScript stack trace
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== JavaScript Stack Trace ====================================================\n\n");
+  // Print Node.js and OS version information
+  PrintVersionInformation(fp);
+  fflush(fp);
 
-#ifdef _WIN32
-  switch (event) {
-  case kFatalError:
-    // Stack trace on fatal error not supported on Windows
-    fprintf(fp, "No stack trace available\n");
-    break;
-  default:
-    // All other events, print the stack using StackTrace::StackTrace() and GetStackSample() APIs
-    PrintStackFromStackTrace(fp, isolate, event);
-    break;
-  }  // end switch(event)
-#else  // Unix, OSX
-  switch (event) {
-  case kException:
-  case kJavaScript:
-    // Print the stack using Message::PrintCurrentStackTrace() API
-    Message::PrintCurrentStackTrace(isolate, fp);
-    break;
-  case kFatalError:
-#if NODE_VERSION_AT_LEAST(6, 0, 0)
-    if (!strncmp(location,"MarkCompactCollector", sizeof("MarkCompactCollector") - 1)) {
-      fprintf(fp, "V8 running in GC - no stack trace available\n");
-    } else {
-      Message::PrintCurrentStackTrace(isolate, fp);
-    }
-#else
-    fprintf(fp, "No stack trace available\n");
-#endif
-    break;
-  case kSignal_JS:
-  case kSignal_UV:
-    // Print the stack using StackTrace::StackTrace() and GetStackSample() APIs
-    PrintStackFromStackTrace(fp, isolate, event);
-    break;
-  }  // end switch(event)
-#endif
+// Print summary JavaScript stack backtrace
+  PrintJavaScriptStack(fp, isolate, event, location);
   fflush(fp);
 
   // Print native stack backtrace
-  PrintNativeBacktrace(fp);
+  PrintNativeStack(fp);
   fflush(fp);
 
   // Print V8 Heap and Garbage Collector information
@@ -435,11 +361,105 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
 }
 
 /*******************************************************************************
- * Function to print stack using StackTrace::StackTrace() and GetStackSample()
+ * Function to print Node.js version, OS version and machine information
  *
  ******************************************************************************/
-static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate,
-                                     DumpEvent event) {
+static void PrintVersionInformation(FILE *fp) {
+
+  // Print Node.js and deps component versions
+  fprintf(fp, "\nNode.js version: %s\n", NODE_VERSION);
+  fprintf(fp, "(v8: %s, libuv: %s, zlib: %s, ares: %s)\n",
+          V8::GetVersion(), uv_version_string(), ZLIB_VERSION, ARES_VERSION_STR);
+
+  // Print operating system and machine information (Windows)
+#ifdef _WIN32
+  fprintf(fp,"\nOS version: Windows ");
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+  if (IsWindows1OrGreater()) {
+    fprintf(fp,"10 ");
+  } else
+#endif
+  if (IsWindows8OrGreater()) {
+    fprintf(fp,"8 ");
+  } else if (IsWindows7OrGreater()) {
+    fprintf(fp,"7 ");
+  } else if (IsWindowsXPOrGreater()) {
+    fprintf(fp,"XP ");
+  }
+  if (IsWindowsServer()) {
+    fprintf(fp,"Server\n");
+  } else {
+    fprintf(fp,"Client\n");
+  }
+  TCHAR machine_name[256];
+  DWORD machine_name_size = 256;
+  if (GetComputerName(machine_name, &machine_name_size)) {
+    fprintf(fp,"\nMachine: %s %s\n", machine_name);
+  }
+#else
+  // Print operating system and machine information (Unix/OSX)
+  struct utsname os_info;
+  if (uname(&os_info) == 0) {
+    fprintf(fp,"\nOS version: %s %s %s\n",os_info.sysname, os_info.release, os_info.version);
+#if defined(__GLIBC__)
+    fprintf(fp,"(glibc: %d.%d)\n", __GLIBC__, __GLIBC_MINOR__);
+#endif
+    fprintf(fp,"\nMachine: %s %s\n", os_info.nodename, os_info.machine);
+  }
+#endif
+}
+
+/*******************************************************************************
+ * Function to print the JavaScript stack, if available
+ *
+ ******************************************************************************/
+static void PrintJavaScriptStack(FILE *fp, Isolate* isolate, DumpEvent event, const char *location) {
+  fprintf(fp, "\n================================================================================");
+  fprintf(fp, "\n==== JavaScript Stack Trace ====================================================\n\n");
+
+#ifdef _WIN32
+  switch (event) {
+  case kFatalError:
+    // Stack trace on fatal error not supported on Windows
+    fprintf(fp, "No stack trace available\n");
+    break;
+  default:
+    // All other events, print the stack using StackTrace::StackTrace() and GetStackSample() APIs
+    PrintStackFromStackTrace(fp, isolate, event);
+    break;
+  }  // end switch(event)
+#else  // Unix, OSX
+  switch (event) {
+  case kException:
+  case kJavaScript:
+    // Print the stack using Message::PrintCurrentStackTrace() API
+    Message::PrintCurrentStackTrace(isolate, fp);
+    break;
+  case kFatalError:
+#if NODE_VERSION_AT_LEAST(6, 0, 0)
+    if (!strncmp(location,"MarkCompactCollector", sizeof("MarkCompactCollector") - 1)) {
+      fprintf(fp, "V8 running in GC - no stack trace available\n");
+    } else {
+      Message::PrintCurrentStackTrace(isolate, fp);
+    }
+#else
+    fprintf(fp, "No stack trace available\n");
+#endif
+    break;
+  case kSignal_JS:
+  case kSignal_UV:
+    // Print the stack using StackTrace::StackTrace() and GetStackSample() APIs
+    PrintStackFromStackTrace(fp, isolate, event);
+    break;
+  }  // end switch(event)
+#endif
+}
+
+/*******************************************************************************
+ * Function to print stack using GetStackSample() and StackTrace::StackTrace()
+ *
+ ******************************************************************************/
+static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event) {
   v8::RegisterState state;
   v8::SampleInfo info;
   void* samples[255];
@@ -518,7 +538,7 @@ static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame,
  * Function to print a native stack backtrace
  *
  ******************************************************************************/
-void PrintNativeBacktrace(FILE* fp) {
+void PrintNativeStack(FILE* fp) {
   void *frames[64];
   fprintf(fp, "\n================================================================================");
   fprintf(fp, "\n==== Native Stack Trace ========================================================\n\n");
@@ -562,7 +582,7 @@ void PrintNativeBacktrace(FILE* fp) {
  * Function to print a native stack backtrace - Linux/OSX
  *
  ******************************************************************************/
-void PrintNativeBacktrace(FILE* fp) {
+void PrintNativeStack(FILE* fp) {
   void* frames[256];
   fprintf(fp, "\n================================================================================");
   fprintf(fp, "\n==== Native Stack Trace ========================================================\n\n");
