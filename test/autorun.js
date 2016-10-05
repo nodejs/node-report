@@ -66,10 +66,10 @@ if (process.platform === 'win32') {
   console.log('autorun.js: running child process #4 to produce NodeReport on SIGUSR2');
   var child4 = spawn(process.execPath, [path.resolve(__dirname, 'test_4.js')], {stdio: ['pipe', stdio_log, stdio_log]});
   setTimeout(function() {
-      child4.kill('SIGUSR2');
-      setTimeout(function() {
-          child4.kill('SIGTERM');
-      }, 1000);
+    child4.kill('SIGUSR2');
+    setTimeout(function() {
+      child4.kill('SIGTERM');
+    }, 1000);
   }, 1000);
   child4.on('exit', function(code, signal) {
     // Locate and validate the NodeReport
@@ -127,4 +127,3 @@ function validate(report, index) {
     } 
   });
 }
-
