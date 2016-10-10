@@ -108,15 +108,15 @@ unsigned int ProcessNodeReportEvents(const char *args) {
 unsigned int ProcessNodeReportCoreSwitch(const char *args) {
   if (strlen(args) == 0) {
     fprintf(stderr, "Missing argument for nodereport core switch option\n");
-    return 0;
-  }
-  // Parse the supplied switch
-  if (!strncmp(args, "yes", sizeof("yes") - 1) || !strncmp(args, "true", sizeof("true") - 1)) {
-    return 1;
-  } else if (!strncmp(args, "no", sizeof("no") - 1) || !strncmp(args, "false", sizeof("false") - 1)) {
-    return 0;
   } else {
-    fprintf(stderr, "Unrecognised argument for nodereport core switch option: %s\n", args);
+    // Parse the supplied switch
+    if (!strncmp(args, "yes", sizeof("yes") - 1) || !strncmp(args, "true", sizeof("true") - 1)) {
+      return 1;
+    } else if (!strncmp(args, "no", sizeof("no") - 1) || !strncmp(args, "false", sizeof("false") - 1)) {
+      return 0;
+    } else {
+      fprintf(stderr, "Unrecognised argument for nodereport core switch option: %s\n", args);
+    }
   }
   return 1;  // Default is to produce core dumps
 }
@@ -127,17 +127,17 @@ unsigned int ProcessNodeReportSignal(const char *args) {
 #else
   if (strlen(args) == 0) {
     fprintf(stderr, "Missing argument for nodereport signal option\n");
-    return 0;
-  }
-  // Parse the supplied switch
-  if (!strncmp(args, "SIGUSR2", sizeof("SIGUSR2") - 1)) {
-    return SIGUSR2;
-  } else if (!strncmp(args, "SIGQUIT", sizeof("SIGQUIT") - 1)) {
-    return SIGQUIT;
   } else {
-    fprintf(stderr, "Unrecognised argument for nodereport signal option: %s\n", args);
+    // Parse the supplied switch
+    if (!strncmp(args, "SIGUSR2", sizeof("SIGUSR2") - 1)) {
+      return SIGUSR2;
+    } else if (!strncmp(args, "SIGQUIT", sizeof("SIGQUIT") - 1)) {
+      return SIGQUIT;
+    } else {
+      fprintf(stderr, "Unrecognised argument for nodereport signal option: %s\n", args);
+    }
   }
-  return SIGUSR2;  // Default is SIGUSR2
+  return SIGUSR2;  // Default signal is SIGUSR2
 #endif
 }
 

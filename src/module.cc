@@ -10,7 +10,8 @@ bool OnUncaughtException(v8::Isolate* isolate);
 static void SignalDumpAsyncCallback(uv_async_t* handle);
 inline void* ReportSignalThreadMain(void* unused);
 static int StartWatchdogThread(void *(*thread_main) (void* unused));
-static void RegisterSignalHandler(int signal, void (*handler)(int signal), bool reset_handler);
+static void RegisterSignalHandler(int signal, void (*handler)(int signal));
+static void RestoreSignalHandler(int signal);
 static void SignalDump(int signo);
 static void SetupSignalHandler();
 #endif
@@ -28,6 +29,7 @@ static int report_signal = 0;
 static uv_sem_t report_semaphore;
 static uv_async_t nodereport_trigger_async;
 static uv_mutex_t node_isolate_mutex;
+static struct sigaction saved_sa;
 #endif
 
 static v8::Isolate* node_isolate;
@@ -80,19 +82,30 @@ NAN_METHOD(SetEvents) {
   }
 
 #ifndef _WIN32
-  // If NodeReport newly requested on external user signal set up watchdog thread and callbacks
+  // If NodeReport newly requested on external user signal set up watchdog thread and handler
   if ((nodereport_events & NR_SIGNAL) && !(previous_events & NR_SIGNAL)) {
     SetupSignalHandler();
+  }
+  // If NodeReport no longer required on external user signal, reset the OS signal handler
+  if (!(nodereport_events & NR_SIGNAL) && (previous_events & NR_SIGNAL)) {
+    RestoreSignalHandler(nodereport_signal);
   }
 #endif
 }
 NAN_METHOD(SetCoreDump) {
   Nan::Utf8String parameter(info[0]);
-  nodereport_events = ProcessNodeReportCoreSwitch(*parameter);
+  nodereport_core = ProcessNodeReportCoreSwitch(*parameter);
 }
 NAN_METHOD(SetSignal) {
   Nan::Utf8String parameter(info[0]);
-  nodereport_events = ProcessNodeReportSignal(*parameter);
+  unsigned int previous_signal = nodereport_signal; // save previous setting
+  nodereport_signal = ProcessNodeReportSignal(*parameter);
+
+  // If signal event active and selected signal has changed, switch the OS signal handler
+  if ((nodereport_events & NR_SIGNAL) && (nodereport_signal != previous_signal)) {
+    RestoreSignalHandler(previous_signal);
+    RegisterSignalHandler(nodereport_signal, SignalDump);
+  }
 }
 NAN_METHOD(SetFileName) {
   Nan::Utf8String parameter(info[0]);
@@ -186,27 +199,21 @@ static void SignalDumpAsyncCallback(uv_async_t* handle) {
  *  - SetupSignalHandler() - initialisation of signal handlers and threads
  ******************************************************************************/
  // Utility function to register an OS signal handler
-static void RegisterSignalHandler(int signal, void (*handler)(int signal), bool reset_handler = false) {
+static void RegisterSignalHandler(int signal, void (*handler)(int signal)) {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = handler;
-#ifndef __FreeBSD__
-  // Note: SA_RESETHAND doesn't work with some versions of FreeBSD's libthr. The
-  // workaround is to set the handler to SIG_DFL in the signal handler, see below
-  sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
-#endif  //__FreeBSD__
-  sigfillset(&sa.sa_mask);
-  sigaction(signal, &sa, nullptr);
+  sigfillset(&sa.sa_mask);  // mask all signals while in the handler
+  sigaction(signal, &sa, &saved_sa);
+}
+
+// Utility function to restore an OS signal handler to its previous setting
+static void RestoreSignalHandler(int signal) {
+  sigaction(signal, &saved_sa, nullptr);
 }
 
 // Raw signal handler for triggering a NodeReport - runs on an arbitrary thread
 static void SignalDump(int signo) {
-#ifdef __FreeBSD__
-  struct sigaction sa;
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = SIG_DFL;
-  sigaction(signo, &sa, nullptr);
-#endif  // __FreeBSD__
   // Check atomic for NodeReport already pending, storing the signal number
   if (__sync_val_compare_and_swap(&report_signal, 0, signo) == 0) {
     uv_sem_post(&report_semaphore);  // Hand-off to watchdog thread
@@ -277,7 +284,7 @@ static void SetupSignalHandler() {
       Nan::ThrowError("nodereport: initialization failed, uv_async_init() returned error\n");
     }
     uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
-    RegisterSignalHandler(nodereport_signal, SignalDump, false);
+    RegisterSignalHandler(nodereport_signal, SignalDump);
   }
 }
 #endif
