@@ -1,5 +1,5 @@
 // Example - generation of Nodereport on fatal error (Javascript heap OOM)
-require('nodereport');
+require('nodereport').setEvents("fatalerror");
 var http = require('http');
 
 var count = 0;

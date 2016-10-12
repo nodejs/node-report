@@ -1,5 +1,5 @@
 // Example - generation of NodeReport on uncaught exception
-require('nodereport');
+require('nodereport').setEvents("exception");
 var http = require("http");
 
 var count = 0;

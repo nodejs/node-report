@@ -1,5 +1,5 @@
 // Testcase to loop in Javascript code
-require('nodereport');
+require('nodereport').setEvents("signal");
 
 console.log('loop.js: going into loop now.... use kill -USR2 <pid> to trigger NodeReport');
 

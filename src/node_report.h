@@ -21,7 +21,7 @@ using v8::Value;
 #define NR_EXCEPTION  0x01
 #define NR_FATALERROR 0x02
 #define NR_SIGNAL     0x04
-#define NR_JSAPICALL  0x08
+#define NR_APICALL    0x08
 
 // Maximum file and path name lengths
 #define NR_MAXNAME 64

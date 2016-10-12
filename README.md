@@ -1,12 +1,12 @@
 # nodereport
 
-nodereport is an add-on for Node.js, delivered as an NPM module,
+nodereport is an add-on for Node.js, delivered as an NPM native module,
 which provides a human-readable diagnostic summary report, written
 to file. The report is intended for development, test and production
 use, to capture and preserve information for problem determination.
 It includes Javascript and native stack traces, heap statistics,
 platform information and resource usage etc. With the report enabled,
-reports are triggered on unhandled exceptions, fatal errors, signals
+reports can be triggered on unhandled exceptions, fatal errors, signals
 and calls to a Javascript API.
 
 Usage:
@@ -15,10 +15,8 @@ Usage:
 
     var nodereport = require('nodereport');
 
-By default, this will trigger a NodeReport to be written to the current
-directory on unhandled exceptions, fatal errors or (Linux/OSX only)
-SIGUSR2 signals. In addition, a NodeReport can be triggered from a 
-Javascript application via API. The filename of the NodeReport is
+By default, this will allow a NodeReport to be triggered via an API
+call from a JavaScript application. The filename of the NodeReport is
 returned. The default filename includes the date, time, PID and a
 sequence number. Alternatively a filename can be specified on the API call.
 
@@ -38,26 +36,26 @@ The following messages are issued to stderr when a NodeReport is triggered:
     Writing Node.js error report to file: NodeReport.201605113.145311.26249.001.txt
     Node.js error report completed
 
-Configuration is available via these environment variables and/or Javascript
-API calls:
 
-    export NODEREPORT_EVENTS=exception+fatalerror+signal
-    nodereport.setEvents("exception+fatalerror+signal");
+A NodeReport can also be triggered on unhandled exception and fatal error
+events, and/or signals (Linux/OSX only). These and other options can be 
+enabled or disabled using the following APIs:
 
-    export NODEREPORT_COREDUMP=yes/no
-    nodereport.setCoreDump("yes/no");
-
-    export NODEREPORT_SIGNAL=SIGUSR2/SIGQUIT
-    nodereport.setSignal("SIGUSR2/SIGQUIT");
-
-    export NODEREPORT_FILENAME=stdout/stderr/<filename>
-    nodereport.setFileName("stdout/stderr/<filename>");
-
-    export NODEREPORT_DIRECTORY=<full path>
+    nodereport.setEvents("exception+fatalerror+signal+apicall");
+    nodereport.setSignal("SIGUSR2|SIGQUIT");
+    nodereport.setFileName("stdout|stderr|<filename>");
     nodereport.setDirectory("<full path>");
+    nodereport.setCoreDump("yes|no");
+    nodereport.setVerbose("yes|no");
 
-    export NODEREPORT_VERBOSE=yes/no
-    nodereport.setVerbose("yes/no");
+Configuration on module initialisation is also available via environment variables:
+
+    export NODEREPORT_EVENTS=exception+fatalerror+signal+apicall
+    export NODEREPORT_SIGNAL=SIGUSR2|SIGQUIT
+    export NODEREPORT_FILENAME=stdout|stderr|<filename>
+    export NODEREPORT_DIRECTORY=<full path>
+    export NODEREPORT_COREDUMP=yes|no
+    export NODEREPORT_VERBOSE=yes|no
 
 Sample programs for triggering NodeReports are provided in the
 node_modules/nodereport/demo directory: 

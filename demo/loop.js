@@ -1,5 +1,5 @@
 // Example - geneation of Nodereport via signal for a looping application
-require('nodereport');
+require('nodereport').setEvents("signal");
 var http = require("http");
 
 var count = 0;

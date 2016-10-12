@@ -17,20 +17,24 @@ static void SetupSignalHandler();
 #endif
 
 // Default nodereport option settings
-static unsigned int nodereport_events = NR_EXCEPTION + NR_FATALERROR + NR_SIGNAL + NR_JSAPICALL;
+static unsigned int nodereport_events = NR_APICALL;
 static unsigned int nodereport_core = 1;
 static unsigned int nodereport_verbose = 0;
-
-#ifdef _WIN32
-static unsigned int nodereport_signal = 0; // no-op on Windows
-#else  // signal support - on Unix/OSX only
+#ifdef _WIN32  // trigger signal not supported on Windows
+static unsigned int nodereport_signal = 0;
+#else  // trigger signal supported on Unix platforms and OSX
 static unsigned int nodereport_signal = SIGUSR2; // default signal is SIGUSR2
-static int report_signal = 0;
-static uv_sem_t report_semaphore;
-static uv_async_t nodereport_trigger_async;
-static uv_mutex_t node_isolate_mutex;
-static struct sigaction saved_sa;
+static int report_signal = 0;  // atomic for signal handling in progress
+static uv_sem_t report_semaphore;  // semaphore for hand-off to watchdog
+static uv_async_t nodereport_trigger_async;  // async handle for event loop
+static uv_mutex_t node_isolate_mutex;  // mutex for wachdog thread
+static struct sigaction saved_sa;  // saved signal action
 #endif
+
+// State variables for v8 hooks and signal initialisation
+static bool exception_hook_initialised = false;
+static bool error_hook_initialised = false;
+static bool signal_thread_initialised = false;
 
 static v8::Isolate* node_isolate;
 
@@ -52,10 +56,11 @@ NAN_METHOD(TriggerReport) {
       Nan::ThrowSyntaxError("nodereport: filename parameter is too long");
     }
   }
-
-  TriggerNodeReport(isolate, kJavaScript, "JavaScript API", "TriggerReport (nodereport/src/module.cc)", filename);
-  // Return value is the NodeReport filename
-  info.GetReturnValue().Set(Nan::New(filename).ToLocalChecked());
+  if (nodereport_events & NR_APICALL) {
+    TriggerNodeReport(isolate, kJavaScript, "JavaScript API", "TriggerReport (nodereport/src/module.cc)", filename);
+    // Return value is the NodeReport filename
+    info.GetReturnValue().Set(Nan::New(filename).ToLocalChecked());
+  }
 }
 
 /*******************************************************************************
@@ -69,21 +74,23 @@ NAN_METHOD(SetEvents) {
   nodereport_events = ProcessNodeReportEvents(*parameter);
 
   // If NodeReport newly requested for fatalerror, set up the V8 call-back
-  if ((nodereport_events & NR_FATALERROR) && !(previous_events & NR_FATALERROR)) {
+  if ((nodereport_events & NR_FATALERROR) && (error_hook_initialised == false)) {
     isolate->SetFatalErrorHandler(OnFatalError);
+    error_hook_initialised = true;
   }
 
   // If NodeReport newly requested for exceptions, tell V8 to capture stack trace and set up the callback
-  if ((nodereport_events & NR_EXCEPTION) && !(previous_events & NR_EXCEPTION)) {
+  if ((nodereport_events & NR_EXCEPTION) && (exception_hook_initialised == false)) {
     isolate->SetCaptureStackTraceForUncaughtExceptions(true, 32, v8::StackTrace::kDetailed);
     // The hook for uncaught exception won't get called unless the --abort_on_uncaught_exception option is set
     v8::V8::SetFlagsFromString("--abort_on_uncaught_exception", sizeof("--abort_on_uncaught_exception")-1);
     isolate->SetAbortOnUncaughtExceptionCallback(OnUncaughtException);
+    exception_hook_initialised = true;
   }
 
 #ifndef _WIN32
   // If NodeReport newly requested on external user signal set up watchdog thread and handler
-  if ((nodereport_events & NR_SIGNAL) && !(previous_events & NR_SIGNAL)) {
+  if ((nodereport_events & NR_SIGNAL) && (signal_thread_initialised == false)) {
     SetupSignalHandler();
   }
   // If NodeReport no longer required on external user signal, reset the OS signal handler
@@ -285,6 +292,7 @@ static void SetupSignalHandler() {
     }
     uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
     RegisterSignalHandler(nodereport_signal, SignalDump);
+    signal_thread_initialised = true;
   }
 }
 #endif
@@ -327,6 +335,7 @@ void Initialize(v8::Local<v8::Object> exports) {
   // If NodeReport requested for fatalerror, set up the V8 call-back
   if (nodereport_events & NR_FATALERROR) {
     isolate->SetFatalErrorHandler(OnFatalError);
+    error_hook_initialised = true;
   }
 
   // If NodeReport requested for exceptions, tell V8 to capture stack trace and set up the callback
@@ -335,6 +344,7 @@ void Initialize(v8::Local<v8::Object> exports) {
     // The hook for uncaught exception won't get called unless the --abort_on_uncaught_exception option is set
     v8::V8::SetFlagsFromString("--abort_on_uncaught_exception", sizeof("--abort_on_uncaught_exception")-1);
     isolate->SetAbortOnUncaughtExceptionCallback(OnUncaughtException);
+    exception_hook_initialised = true;
   }
 
 #ifndef _WIN32

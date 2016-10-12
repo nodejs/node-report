@@ -94,6 +94,9 @@ unsigned int ProcessNodeReportEvents(const char *args) {
     } else if (!strncmp(cursor, "signal", sizeof("signal") - 1)) {
         event_flags |= NR_SIGNAL;
         cursor += sizeof("signal") - 1;
+    } else if (!strncmp(cursor, "apicall", sizeof("apicall") - 1)) {
+        event_flags |= NR_APICALL;
+        cursor += sizeof("apicall") - 1;
     } else {
       fprintf(stderr, "Unrecognised argument for nodereport events option: %s\n", cursor);
        return 0;
