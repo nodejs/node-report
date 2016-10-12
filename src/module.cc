@@ -104,6 +104,7 @@ NAN_METHOD(SetCoreDump) {
   nodereport_core = ProcessNodeReportCoreSwitch(*parameter);
 }
 NAN_METHOD(SetSignal) {
+#ifndef _WIN32
   Nan::Utf8String parameter(info[0]);
   unsigned int previous_signal = nodereport_signal; // save previous setting
   nodereport_signal = ProcessNodeReportSignal(*parameter);
@@ -113,6 +114,7 @@ NAN_METHOD(SetSignal) {
     RestoreSignalHandler(previous_signal);
     RegisterSignalHandler(nodereport_signal, SignalDump);
   }
+#endif
 }
 NAN_METHOD(SetFileName) {
   Nan::Utf8String parameter(info[0]);
