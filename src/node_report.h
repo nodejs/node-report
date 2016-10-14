@@ -68,6 +68,8 @@ inline static int snprintf(char* buffer, size_t n, const char* format, ...) {
   va_end(argp);
   return ret;
 }
+
+#define __func__ __FUNCTION__
 #endif  // defined( _MSC_VER ) && (_MSC_VER < 1900)
 
 }  // namespace nodereport
