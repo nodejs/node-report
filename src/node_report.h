@@ -29,14 +29,14 @@ using v8::Value;
 
 enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript};
 
-void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, const char *location, char* name);
+void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name);
 
-unsigned int ProcessNodeReportEvents(const char *args);
-unsigned int ProcessNodeReportCoreSwitch(const char *args);
-unsigned int ProcessNodeReportSignal(const char *args);
-void ProcessNodeReportFileName(const char *args);
-void ProcessNodeReportDirectory(const char *args);
-unsigned int ProcessNodeReportVerboseSwitch(const char *args);
+unsigned int ProcessNodeReportEvents(const char* args);
+unsigned int ProcessNodeReportCoreSwitch(const char* args);
+unsigned int ProcessNodeReportSignal(const char* args);
+void ProcessNodeReportFileName(const char* args);
+void ProcessNodeReportDirectory(const char* args);
+unsigned int ProcessNodeReportVerboseSwitch(const char* args);
 
 void SetLoadTime();
 
@@ -60,7 +60,7 @@ constexpr size_t arraysize(const T(&)[N]) { return N; }
 // Emulate snprintf() on Windows pre Visual Studio 2015
 #if defined( _MSC_VER ) && (_MSC_VER < 1900)
 #include <stdarg.h>
-inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
+inline static int snprintf(char* buffer, size_t n, const char* format, ...) {
   va_list argp;
   va_start(argp, format);
   int ret = _vscprintf(format, argp);

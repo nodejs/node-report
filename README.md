@@ -36,7 +36,6 @@ The following messages are issued to stderr when a NodeReport is triggered:
     Writing Node.js error report to file: NodeReport.201605113.145311.26249.001.txt
     Node.js error report completed
 
-
 A NodeReport can also be triggered on unhandled exception and fatal error
 events, and/or signals (Linux/OSX only). These and other options can be 
 enabled or disabled using the following APIs:
@@ -58,7 +57,7 @@ Configuration on module initialisation is also available via environment variabl
     export NODEREPORT_VERBOSE=yes|no
 
 Sample programs for triggering NodeReports are provided in the
-node_modules/nodereport/demo directory: 
+node_modules/nodereport/demo directory:
 
     api.js - NodeReport triggered by Javascript API call
     exception.js - NodeReport triggered by unhandled exception

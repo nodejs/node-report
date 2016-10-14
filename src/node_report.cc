@@ -31,7 +31,7 @@
 #endif
 
 #ifndef _WIN32
-extern char **environ;
+extern char** environ;
 #endif
 
 namespace nodereport {
@@ -47,17 +47,17 @@ using v8::String;
 using v8::V8;
 
 // Internal/static function declarations
-static void PrintVersionInformation(FILE *fp);
-static void PrintJavaScriptStack(FILE *fp, Isolate* isolate, DumpEvent event, const char *location);
+static void PrintVersionInformation(FILE* fp);
+static void PrintJavaScriptStack(FILE* fp, Isolate* isolate, DumpEvent event, const char* location);
 static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event);
-static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame, int index, void *pc);
-static void PrintNativeStack(FILE *fp);
+static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame, int index, void* pc);
+static void PrintNativeStack(FILE* fp);
 #ifndef _WIN32
-static void PrintResourceUsage(FILE *fp);
+static void PrintResourceUsage(FILE* fp);
 #endif
-static void PrintGCStatistics(FILE *fp, Isolate* isolate);
-static void PrintSystemInformation(FILE *fp, Isolate* isolate);
-static void WriteInteger(FILE *fp, size_t value);
+static void PrintGCStatistics(FILE* fp, Isolate* isolate);
+static void PrintSystemInformation(FILE* fp, Isolate* isolate);
+static void WriteInteger(FILE* fp, size_t value);
 
 // Global variables
 static int seq = 0;  // sequence number for NodeReport filenames
@@ -80,7 +80,7 @@ static struct tm loadtime_tm_struct; // module load time
  *   NodeReport directory
  *   Verbose mode
  ******************************************************************************/
-unsigned int ProcessNodeReportEvents(const char *args) {
+unsigned int ProcessNodeReportEvents(const char* args) {
   // Parse the supplied event types
   unsigned int event_flags = 0;
   const char* cursor = args;
@@ -92,14 +92,14 @@ unsigned int ProcessNodeReportEvents(const char *args) {
        event_flags |= NR_FATALERROR;
        cursor += sizeof("fatalerror") - 1;
     } else if (!strncmp(cursor, "signal", sizeof("signal") - 1)) {
-        event_flags |= NR_SIGNAL;
-        cursor += sizeof("signal") - 1;
+      event_flags |= NR_SIGNAL;
+      cursor += sizeof("signal") - 1;
     } else if (!strncmp(cursor, "apicall", sizeof("apicall") - 1)) {
-        event_flags |= NR_APICALL;
-        cursor += sizeof("apicall") - 1;
+      event_flags |= NR_APICALL;
+      cursor += sizeof("apicall") - 1;
     } else {
       fprintf(stderr, "Unrecognised argument for nodereport events option: %s\n", cursor);
-       return 0;
+      return 0;
     }
     if (*cursor == '+') {
       cursor++;  // Hop over the '+' separator
@@ -108,7 +108,7 @@ unsigned int ProcessNodeReportEvents(const char *args) {
   return event_flags;
 }
 
-unsigned int ProcessNodeReportCoreSwitch(const char *args) {
+unsigned int ProcessNodeReportCoreSwitch(const char* args) {
   if (strlen(args) == 0) {
     fprintf(stderr, "Missing argument for nodereport core switch option\n");
   } else {
@@ -124,7 +124,7 @@ unsigned int ProcessNodeReportCoreSwitch(const char *args) {
   return 1;  // Default is to produce core dumps
 }
 
-unsigned int ProcessNodeReportSignal(const char *args) {
+unsigned int ProcessNodeReportSignal(const char* args) {
 #ifdef _WIN32
   return 0; // no-op on Windows
 #else
@@ -144,7 +144,7 @@ unsigned int ProcessNodeReportSignal(const char *args) {
 #endif
 }
 
-void ProcessNodeReportFileName(const char *args) {
+void ProcessNodeReportFileName(const char* args) {
   if (strlen(args) == 0) {
     fprintf(stderr, "Missing argument for nodereport filename option\n");
     return;
@@ -156,7 +156,7 @@ void ProcessNodeReportFileName(const char *args) {
   snprintf(report_filename, sizeof(report_filename), "%s", args);
 }
 
-void ProcessNodeReportDirectory(const char *args) {
+void ProcessNodeReportDirectory(const char* args) {
   if (strlen(args) == 0) {
     fprintf(stderr, "Missing argument for nodereport directory option\n");
     return;
@@ -168,7 +168,7 @@ void ProcessNodeReportDirectory(const char *args) {
   snprintf(report_directory, sizeof(report_directory), "%s", args);
 }
 
-unsigned int ProcessNodeReportVerboseSwitch(const char *args) {
+unsigned int ProcessNodeReportVerboseSwitch(const char* args) {
   if (strlen(args) == 0) {
     fprintf(stderr, "Missing argument for nodereport verbose switch option\n");
     return 0;
@@ -192,7 +192,7 @@ void SetLoadTime() {
   GetLocalTime(&loadtime_tm_struct);
 #else  // UNIX, OSX
   struct timeval time_val;
-  gettimeofday(&time_val, NULL);
+  gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, &loadtime_tm_struct);
 #endif
 }
@@ -202,11 +202,11 @@ void SetLoadTime() {
  * Parameters:
  *   Isolate* isolate
  *   DumpEvent event
- *   const char *message
- *   const char *location
- *   char *name - in/out - returns the NodeReport filename
+ *   const char* message
+ *   const char* location
+ *   char* name - in/out - returns the NodeReport filename
  ******************************************************************************/
-void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, const char *location, char *name) {
+void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name) {
   // Recursion check for NodeReport in progress, bail out
   if (report_active) return; 
   report_active = true;
@@ -219,7 +219,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
 #else  // UNIX, OSX
   struct timeval time_val;
   struct tm tm_struct;
-  gettimeofday(&time_val, NULL);
+  gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, &tm_struct);
   pid_t pid = getpid();
 #endif
@@ -227,7 +227,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
   // Determine the required NodeReport filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   char filename[NR_MAXNAME + 1] = "";
-  if (name != NULL && strlen(name) > 0) {
+  if (name != nullptr && strlen(name) > 0) {
     // Filename was specified as API parameter, use that
     snprintf(filename, sizeof(filename), "%s", name);
   } else if (strlen(report_filename) > 0) {
@@ -237,13 +237,12 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
     // Construct the NodeReport filename, with timestamp, pid and sequence number
     snprintf(filename, sizeof(filename), "%s", "NodeReport");
     seq++;
-
 #ifdef _WIN32
     snprintf(&filename[strlen(filename)], sizeof(filename) - strlen(filename),
              ".%4d%02d%02d.%02d%02d%02d.%d.%03d.txt",
              tm_struct.wYear, tm_struct.wMonth, tm_struct.wDay,
              tm_struct.wHour, tm_struct.wMinute, tm_struct.wSecond,
-            pid, seq);
+             pid, seq);
 #else  // UNIX, OSX
     snprintf(&filename[strlen(filename)], sizeof(filename) - strlen(filename),
              ".%4d%02d%02d.%02d%02d%02d.%d.%03d.txt",
@@ -254,7 +253,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
   }
 
   // Open the NodeReport file stream for writing. Supports stdout/err, user-specified or (default) generated name
-  FILE *fp = NULL;
+  FILE* fp = nullptr;
   if (!strncmp(filename, "stdout", sizeof("stdout") - 1)) {
     fp = stdout;
   } else if (!strncmp(filename, "stderr", sizeof("stderr") - 1)) {
@@ -263,19 +262,17 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
     // Regular file. Append filename to directory path if one was specified
     if (strlen(report_directory) > 0) {
       char pathname[NR_MAXPATH + NR_MAXNAME + 1] = "";
-      snprintf(pathname, sizeof(pathname), "%s", report_directory);
 #ifdef _WIN32
-      strcat(pathname, "\\");
+      snprintf(pathname, sizeof(pathname), "%s%s%s", report_directory, "\\", filename);
 #else
-      strcat(pathname, "/");
+      snprintf(pathname, sizeof(pathname), "%s%s%s", report_directory, "/", filename);
 #endif
-      strncat(pathname, filename, NR_MAXNAME);
       fp = fopen(pathname, "w");
     } else {
       fp = fopen(filename, "w");
     }
     // Check for errors on the file open
-    if (fp == NULL) {
+    if (fp == nullptr) {
       if (strlen(report_directory) > 0) {
         fprintf(stderr, "\nFailed to open Node.js report file: %s directory: %s (errno: %d)\n", filename, report_directory, errno);
       } else {
@@ -343,9 +340,9 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
 #ifndef _WIN32
   fprintf(fp, "\n================================================================================");
   fprintf(fp, "\n==== Node.js libuv Handle Summary ==============================================\n");
-  fprintf(fp,"\n(Flags: R=Ref, A=Active, I=Internal)\n");
-  fprintf(fp,"\nFlags Type     Address\n");
-  uv_print_all_handles(NULL, fp);
+  fprintf(fp, "\n(Flags: R=Ref, A=Active, I=Internal)\n");
+  fprintf(fp, "\nFlags Type     Address\n");
+  uv_print_all_handles(nullptr, fp);
   fflush(fp);
 #endif
 
@@ -357,7 +354,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
   fclose(fp);
 
   fprintf(stderr, "Node.js report completed\n");
-  if (name != NULL) {
+  if (name != nullptr) {
     snprintf(name, NR_MAXNAME + 1, "%s", filename);  // return the NodeReport file name
   }
   report_active = false;
@@ -367,7 +364,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char *message, c
  * Function to print Node.js version, OS version and machine information
  *
  ******************************************************************************/
-static void PrintVersionInformation(FILE *fp) {
+static void PrintVersionInformation(FILE* fp) {
 
   // Print Node.js and deps component versions
   fprintf(fp, "\nNode.js version: %s\n", NODE_VERSION);
@@ -376,38 +373,38 @@ static void PrintVersionInformation(FILE *fp) {
 
   // Print operating system and machine information (Windows)
 #ifdef _WIN32
-  fprintf(fp,"\nOS version: Windows ");
+  fprintf(fp, "\nOS version: Windows ");
 #if defined(_MSC_VER) && (_MSC_VER >= 1900)
   if (IsWindows1OrGreater()) {
-    fprintf(fp,"10 ");
+    fprintf(fp, "10 ");
   } else
 #endif
   if (IsWindows8OrGreater()) {
-    fprintf(fp,"8 ");
+    fprintf(fp, "8 ");
   } else if (IsWindows7OrGreater()) {
-    fprintf(fp,"7 ");
+    fprintf(fp, "7 ");
   } else if (IsWindowsXPOrGreater()) {
-    fprintf(fp,"XP ");
+    fprintf(fp, "XP ");
   }
   if (IsWindowsServer()) {
-    fprintf(fp,"Server\n");
+    fprintf(fp, "Server\n");
   } else {
-    fprintf(fp,"Client\n");
+    fprintf(fp, "Client\n");
   }
   TCHAR machine_name[256];
   DWORD machine_name_size = 256;
   if (GetComputerName(machine_name, &machine_name_size)) {
-    fprintf(fp,"\nMachine: %s %s\n", machine_name);
+    fprintf(fp, "\nMachine: %s %s\n", machine_name);
   }
 #else
   // Print operating system and machine information (Unix/OSX)
   struct utsname os_info;
   if (uname(&os_info) == 0) {
-    fprintf(fp,"\nOS version: %s %s %s\n",os_info.sysname, os_info.release, os_info.version);
+    fprintf(fp, "\nOS version: %s %s %s\n", os_info.sysname, os_info.release, os_info.version);
 #if defined(__GLIBC__)
-    fprintf(fp,"(glibc: %d.%d)\n", __GLIBC__, __GLIBC_MINOR__);
+    fprintf(fp, "(glibc: %d.%d)\n", __GLIBC__, __GLIBC_MINOR__);
 #endif
-    fprintf(fp,"\nMachine: %s %s\n", os_info.nodename, os_info.machine);
+    fprintf(fp, "\nMachine: %s %s\n", os_info.nodename, os_info.machine);
   }
 #endif
 }
@@ -416,7 +413,7 @@ static void PrintVersionInformation(FILE *fp) {
  * Function to print the JavaScript stack, if available
  *
  ******************************************************************************/
-static void PrintJavaScriptStack(FILE *fp, Isolate* isolate, DumpEvent event, const char *location) {
+static void PrintJavaScriptStack(FILE* fp, Isolate* isolate, DumpEvent event, const char* location) {
   fprintf(fp, "\n================================================================================");
   fprintf(fp, "\n==== JavaScript Stack Trace ====================================================\n\n");
 
@@ -440,7 +437,7 @@ static void PrintJavaScriptStack(FILE *fp, Isolate* isolate, DumpEvent event, co
     break;
   case kFatalError:
 #if NODE_VERSION_AT_LEAST(6, 0, 0)
-    if (!strncmp(location,"MarkCompactCollector", sizeof("MarkCompactCollector") - 1)) {
+    if (!strncmp(location, "MarkCompactCollector", sizeof("MarkCompactCollector") - 1)) {
       fprintf(fp, "V8 running in GC - no stack trace available\n");
     } else {
       Message::PrintCurrentStackTrace(isolate, fp);
@@ -468,7 +465,7 @@ static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event
   void* samples[255];
 
   // Initialise the register state
-  state.pc = NULL;
+  state.pc = nullptr;
   state.fp = &state;
   state.sp = &state;
 
@@ -492,7 +489,7 @@ static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event
     if (static_cast<size_t>(i) < info.frames_count) {
       PrintStackFrame(fp, isolate, stack->GetFrame(i), i, samples[i]);
     } else {
-      PrintStackFrame(fp, isolate, stack->GetFrame(i), i, NULL);
+      PrintStackFrame(fp, isolate, stack->GetFrame(i), i, nullptr);
     }
   }
 }
@@ -501,7 +498,7 @@ static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event
  * Function to print a JavaScript stack frame from a V8 StackFrame object
  *
  ******************************************************************************/
-static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame, int i, void *pc) {
+static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame, int i, void* pc) {
   Nan::Utf8String fn_name_s(frame->GetFunctionName());
   Nan::Utf8String script_name(frame->GetScriptName());
   const int line_number = frame->GetLineNumber();
@@ -542,22 +539,22 @@ static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame,
  *
  ******************************************************************************/
 void PrintNativeStack(FILE* fp) {
-  void *frames[64];
+  void* frames[64];
   fprintf(fp, "\n================================================================================");
   fprintf(fp, "\n==== Native Stack Trace ========================================================\n\n");
 
   HANDLE hProcess = GetCurrentProcess();
   SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
-  SymInitialize(hProcess, NULL, TRUE);
+  SymInitialize(hProcess, nullptr, TRUE);
 
-  WORD numberOfFrames = CaptureStackBackTrace(2, 64, frames, NULL);
+  WORD numberOfFrames = CaptureStackBackTrace(2, 64, frames, nullptr);
   
   // Walk the frames printing symbolic information if available
   for (int i = 0; i < numberOfFrames; i++) {
     DWORD64 dwOffset64 = 0;
-    DWORD64 dwAddress = (DWORD64)(frames[i]);
+    DWORD64 dwAddress = reinterpret_cast<DWORD64>(frames[i]);
     char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-    PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
+    PSYMBOL_INFO pSymbol = reinterpret_cast<PSYMBOL_INFO>(buffer);
     pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
     pSymbol->MaxNameLen = MAX_SYM_NAME;
 
@@ -566,17 +563,17 @@ void PrintNativeStack(FILE* fp) {
         IMAGEHLP_LINE64 line;
         line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
         if (SymGetLineFromAddr64(hProcess, dwAddress, &dwOffset, &line)) {
-          fprintf(fp,"%2d: [pc=0x%p] %s [+%d] in %s: line: %lu\n", i, pSymbol->Address, pSymbol->Name, dwOffset, line.FileName, line.LineNumber);
+          fprintf(fp, "%2d: [pc=0x%p] %s [+%d] in %s: line: %lu\n", i, pSymbol->Address, pSymbol->Name, dwOffset, line.FileName, line.LineNumber);
         } else {
           // SymGetLineFromAddr64() failed, just print the address and symbol
           if (dwOffset64 <= 32) { // sanity check
-            fprintf(fp,"%2d: [pc=0x%p] %s [+%d]\n", i, pSymbol->Address, pSymbol->Name, dwOffset64);
+            fprintf(fp, "%2d: [pc=0x%p] %s [+%d]\n", i, pSymbol->Address, pSymbol->Name, dwOffset64);
           } else {
-            fprintf(fp,"%2d: [pc=0x%p]\n", i, pSymbol->Address);
+            fprintf(fp, "%2d: [pc=0x%p]\n", i, pSymbol->Address);
           }
         }
     } else { // SymFromAddr() failed, just print the address
-      fprintf(fp,"%2d: [pc=0x%p]\n", i, pSymbol->Address);
+      fprintf(fp, "%2d: [pc=0x%p]\n", i, pSymbol->Address);
     }
   }
 }
@@ -593,10 +590,10 @@ void PrintNativeStack(FILE* fp) {
   // Get the native backtrace (array of instruction addresses)
   const int size = backtrace(frames, arraysize(frames));
   if (size <= 0) {
-    fprintf(fp,"Native backtrace failed, error %d\n", size);
+    fprintf(fp, "Native backtrace failed, error %d\n", size);
     return;
   } else if (size <=2) {
-    fprintf(fp,"No frames to print\n");
+    fprintf(fp, "No frames to print\n");
     return;
   }
 
@@ -632,7 +629,7 @@ void PrintNativeStack(FILE* fp) {
  * The isolate->GetGCStatistics(&heap_stats) internal V8 API could potentially
  * provide some more useful information - the GC history and the handle counts
  ******************************************************************************/
-static void PrintGCStatistics(FILE *fp, Isolate* isolate) {
+static void PrintGCStatistics(FILE* fp, Isolate* isolate) {
   HeapStatistics v8_heap_stats;
   isolate->GetHeapStatistics(&v8_heap_stats);
 
@@ -675,7 +672,7 @@ static void PrintGCStatistics(FILE *fp, Isolate* isolate) {
  * Function to print resource usage (Linux/OSX only).
  *
  ******************************************************************************/
-static void PrintResourceUsage(FILE *fp) {
+static void PrintResourceUsage(FILE* fp) {
   fprintf(fp, "\n================================================================================");
   fprintf(fp, "\n==== Resource Usage ============================================================\n");
 
@@ -684,23 +681,23 @@ static void PrintResourceUsage(FILE *fp) {
   fprintf(fp, "\nProcess total resource usage:");
   if (getrusage(RUSAGE_SELF, &stats) == 0) {
 #ifdef __APPLE__
-    fprintf(fp,"\n  User mode CPU: %ld.%06d secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
-    fprintf(fp,"\n  Kernel mode CPU: %ld.%06d secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    fprintf(fp, "\n  User mode CPU: %ld.%06d secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    fprintf(fp, "\n  Kernel mode CPU: %ld.%06d secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
 #else
-    fprintf(fp,"\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
-    fprintf(fp,"\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    fprintf(fp, "\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    fprintf(fp, "\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
 #endif
-    fprintf(fp,"\n  Maximum resident set size: ");
-    WriteInteger(fp,stats.ru_maxrss * 1024);
-    fprintf(fp," bytes\n  Page faults: %ld (I/O required) %ld (no I/O required)", stats.ru_majflt, stats.ru_minflt);
-    fprintf(fp,"\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
+    fprintf(fp, "\n  Maximum resident set size: ");
+    WriteInteger(fp, stats.ru_maxrss * 1024);
+    fprintf(fp, " bytes\n  Page faults: %ld (I/O required) %ld (no I/O required)", stats.ru_majflt, stats.ru_minflt);
+    fprintf(fp, "\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
   }
 #ifdef RUSAGE_THREAD
   fprintf(fp, "\n\nEvent loop thread resource usage:");
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
-    fprintf(fp,"\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
-    fprintf(fp,"\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
-    fprintf(fp,"\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
+    fprintf(fp, "\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    fprintf(fp, "\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    fprintf(fp, "\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
   }
 #endif
   fprintf(fp, "\n");
@@ -711,7 +708,7 @@ static void PrintResourceUsage(FILE *fp) {
  * Function to print operating system information.
  *
  ******************************************************************************/
-static void PrintSystemInformation(FILE *fp, Isolate* isolate) {
+static void PrintSystemInformation(FILE* fp, Isolate* isolate) {
   fprintf(fp, "\n================================================================================");
   fprintf(fp, "\n==== System Information ========================================================\n");
 
@@ -722,9 +719,9 @@ static void PrintSystemInformation(FILE *fp, Isolate* isolate) {
 
   // Get pointer to the environment block
   lpvEnv = GetEnvironmentStrings();
-  if (lpvEnv != NULL) {
-    // Variable strings are separated by NULL byte, and the block is terminated by a NULL byte.
-    lpszVariable = (LPTSTR) lpvEnv;
+  if (lpvEnv != nullptr) {
+    // Variable strings are separated by null bytes, and the block is terminated by a null byte.
+    lpszVariable = reinterpret_cast<LPTSTR>(lpvEnv);
     while (*lpszVariable) {
       fprintf(fp, "  %s\n", lpszVariable);
       lpszVariable += lstrlen(lpszVariable) + 1;
@@ -734,9 +731,9 @@ static void PrintSystemInformation(FILE *fp, Isolate* isolate) {
 #else
   fprintf(fp, "\nEnvironment variables\n");
   int index = 1;
-  char *env_var = *environ;
+  char* env_var = *environ;
 
-  while (env_var != NULL) {
+  while (env_var != nullptr) {
     fprintf(fp, "  %s\n", env_var);
     env_var = *(environ + index++);
   }
@@ -782,7 +779,7 @@ const static struct {
  * Utility function to print out integer values with commas for readability.
  *
  ******************************************************************************/
-static void WriteInteger(FILE *fp, size_t value) {
+static void WriteInteger(FILE* fp, size_t value) {
   int thousandsStack[8];  // Sufficient for max 64-bit number
   int stackTop = 0;
   int i;

@@ -49,5 +49,5 @@ console.log('loop.js: Go to http://<machine>:8080/ or http://localhost:8080/');
 
 setTimeout(function() {
   console.log('loop.js: timeout expired, exiting.');
-  process.exit(0); 
+  process.exit(0);
 }, 60000);
