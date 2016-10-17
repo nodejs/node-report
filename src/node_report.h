@@ -2,8 +2,12 @@
 #define SRC_NODE_REPORT_H_
 
 #include "nan.h"
-#if !defined(_WIN32) && !defined(__APPLE__)
+#ifndef _WIN32
+#include <unistd.h>
+#include <sys/types.h>
+#ifndef __APPLE__
 #include <features.h>
+#endif
 #endif
 
 namespace nodereport {
@@ -40,14 +44,14 @@ unsigned int ProcessNodeReportVerboseSwitch(const char* args);
 
 void SetLoadTime();
 
-// secure_getenv() only available in glibc, revert to getenv() otherwise
-#if defined(__GLIBC__)
-#if !__GLIBC_PREREQ(2, 17)
-#define secure_getenv getenv
-#endif  // !__GLIBC_PREREQ(2, 17)
-#else
-#define secure_getenv getenv
-#endif  // defined(__GLIBC__)
+// Local implementation of secure_getenv()
+inline const char* secure_getenv(const char* key) {
+#ifndef _WIN32
+  if (getuid() != geteuid() || getgid() != getegid())
+    return nullptr;
+#endif
+  return getenv(key);
+}
 
 // Emulate arraysize() on Windows pre Visual Studio 2015
 #if defined(_MSC_VER) && _MSC_VER < 1900

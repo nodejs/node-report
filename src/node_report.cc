@@ -21,7 +21,6 @@
 #include <VersionHelpers.h>
 #else
 #include <sys/time.h>
-#include <unistd.h>
 #include <sys/resource.h>
 #include <inttypes.h>
 #include <cxxabi.h>
@@ -561,7 +560,7 @@ void PrintNativeStack(FILE* fp) {
     if (SymFromAddr(hProcess, dwAddress, &dwOffset64, pSymbol)) {
         DWORD dwOffset = 0;
         IMAGEHLP_LINE64 line;
-        line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+        line.SizeOfStruct = sizeof(line);
         if (SymGetLineFromAddr64(hProcess, dwAddress, &dwOffset, &line)) {
           fprintf(fp, "%2d: [pc=0x%p] %s [+%d] in %s: line: %lu\n", i, pSymbol->Address, pSymbol->Name, dwOffset, line.FileName, line.LineNumber);
         } else {
