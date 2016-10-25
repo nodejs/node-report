@@ -1,7 +1,7 @@
 {
   "name": "nodereport",
   "main": "nodereport.node",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Diagnostic NodeReport",
   "homepage": "https://github.com/nodejs/nodereport",
   "repository": {
