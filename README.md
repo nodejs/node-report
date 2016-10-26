@@ -7,8 +7,8 @@ use, to capture and preserve information for problem determination.
 It includes Javascript and native stack traces, heap statistics,
 platform information and resource usage etc. With the report enabled,
 reports can be triggered on unhandled exceptions, fatal errors, signals
-and calls to a Javascript API. The module supports Node.js v4 and v6 on
-Linux, MacOS and Windows.
+and calls to a Javascript API. The module supports Node.js v4, v6 and v7
+on Linux, MacOS and Windows.
 
 Usage:
 
