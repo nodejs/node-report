@@ -36,3 +36,8 @@
 # Build directories
 /build/
 /node_modules/
+
+# Package files
+NodeReport*.txt
+npm-debug.log
+nodereport-*.tgz
