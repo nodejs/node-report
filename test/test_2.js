@@ -1,5 +1,5 @@
 // Testcase to produce an uncaught exception
-require('nodereport').setEvents("exception");
+require('../').setEvents("exception");
 
 console.log('exception.js: throwing an uncaught user exception....');
 
