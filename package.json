@@ -1,9 +1,9 @@
 {
   "name": "nodereport",
-  "main": "build/Release/nodereport.node",
+  "main": "nodereport.node",
   "version": "1.0.4",
   "description": "Diagnostic NodeReport",
-  "homepage": "https://github.com/nodejs/nodereport",
+  "homepage": "https://github.com/nodejs/nodereport#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/nodejs/nodereport.git"
@@ -15,7 +15,13 @@
     "nan": "^2.3.5"
   },
   "license": "MIT",
+  "contributors": [
+    "Richard Chamberlain <richard_chamberlain@uk.ibm.com> (https://github.com/rnchamberlain)"
+  ],
   "scripts": {
     "test": "node test/autorun.js"
+  },
+  "bugs": {
+    "url": "https://github.com/nodejs/nodereport/issues"
   }
 }
