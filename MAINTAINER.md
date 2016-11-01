@@ -1,10 +1,10 @@
 # Instructions for maintainers of the nodereport project
 
-## Releasing to www.npmjs.com
+## Publishing to the NPM registry
 
-The nodereport project is published as an NPM native module here: https://www.npmjs.com/package/nodereport
+The nodereport project is published as an NPM native module
 
-On each release to www.npmjs.com
+For each publish to NPM:
 
  - update the version property in the package.json file, incrementing the major, minor and patch level as appropriate 
  - update the CHANGES.md file with a list of commits since last release
