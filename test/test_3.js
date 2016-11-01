@@ -1,5 +1,5 @@
 // Testcase to produce a fatal error (javascript heap OOM)
-require('nodereport').setEvents("fatalerror");
+require('../').setEvents("fatalerror");
 
 console.log('fatalerror.js: allocating excessive javascript heap memory....');
 var list = [];

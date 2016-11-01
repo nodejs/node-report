@@ -1,5 +1,5 @@
 // NodeReport API example
-var nodereport = require('nodereport');
+var nodereport = require('../');
 
 console.log('api_call.js: triggering a NodeReport via API call...');
 
