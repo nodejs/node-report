@@ -1,6 +1,6 @@
 # nodereport
 
-nodereport is an add-on for Node.js, delivered as an NPM native module,
+nodereport is an add-on for Node.js, delivered as an npm native module,
 which provides a human-readable diagnostic summary report, written
 to file. The report is intended for development, test and production
 use, to capture and preserve information for problem determination.

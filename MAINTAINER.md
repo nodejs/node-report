@@ -1,10 +1,10 @@
 # Instructions for maintainers of the nodereport project
 
-## Publishing to the NPM registry
+## Publishing to the npm registry
 
-The nodereport project is published as an NPM native module
+The nodereport project is published as an npm native module
 
-For each publish to NPM:
+For each publish to npm:
 
  - update the version property in the package.json file, incrementing the major, minor and patch level as appropriate 
  - update the CHANGES.md file with a list of commits since last release
