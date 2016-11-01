@@ -4,10 +4,10 @@ nodereport is an add-on for Node.js, delivered as an npm native module,
 which provides a human-readable diagnostic summary report, written
 to file. The report is intended for development, test and production
 use, to capture and preserve information for problem determination.
-It includes Javascript and native stack traces, heap statistics,
+It includes JavaScript and native stack traces, heap statistics,
 platform information and resource usage etc. With the report enabled,
 reports can be triggered on unhandled exceptions, fatal errors, signals
-and calls to a Javascript API. The module supports Node.js v4, v6 and v7
+and calls to a JavaScript API. The module supports Node.js v4, v6 and v7
 on Linux, MacOS and Windows.
 
 Usage:
@@ -21,7 +21,7 @@ call from a JavaScript application.
     nodereport.triggerReport();
 
 Content of the NodeReport consists of a header section containing the event
-type, date, time, PID and Node version, sections containing Javascript and
+type, date, time, PID and Node version, sections containing JavaScript and
 native stack traces, a section containing V8 heap information, a section
 containing libuv handle information and an OS platform information section
 showing CPU and memory usage and system limits. An example NodeReport can be
@@ -68,7 +68,7 @@ To see examples of NodeReports generated from these events you can run the
 demonstration applications provided in the nodereport github repository. These are
 Node.js applications which will prompt you to trigger the required event.
 
-1. api.js - NodeReport triggered by Javascript API call
+1. api.js - NodeReport triggered by JavaScript API call
 2. exception.js - NodeReport triggered by unhandled exception
-3. fatalerror.js - NodeReport triggered by fatal error on Javascript heap out of memory
+3. fatalerror.js - NodeReport triggered by fatal error on JavaScript heap out of memory
 4. loop.js - looping application, NodeReport triggered using kill -USR2 <pid>
