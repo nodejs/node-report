@@ -22,6 +22,10 @@
 #else
 #include <sys/time.h>
 #include <sys/resource.h>
+// Get the standard printf format macros for C99 stdint types.
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
 #include <cxxabi.h>
 #include <dlfcn.h>
