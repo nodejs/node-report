@@ -19,9 +19,12 @@
     "Richard Chamberlain <richard_chamberlain@uk.ibm.com> (https://github.com/rnchamberlain)"
   ],
   "scripts": {
-    "test": "node test/autorun.js"
+    "test": "tap test/test*.js"
   },
   "bugs": {
     "url": "https://github.com/nodejs/nodereport/issues"
+  },
+  "devDependencies": {
+    "tap": "^8.0.0"
   }
 }
