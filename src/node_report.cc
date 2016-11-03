@@ -441,15 +441,7 @@ static void PrintJavaScriptStack(FILE* fp, Isolate* isolate, DumpEvent event, co
     Message::PrintCurrentStackTrace(isolate, fp);
     break;
   case kFatalError:
-#if NODE_VERSION_AT_LEAST(6, 0, 0)
-    if (!strncmp(location, "MarkCompactCollector", sizeof("MarkCompactCollector") - 1)) {
-      fprintf(fp, "V8 running in GC - no stack trace available\n");
-    } else {
-      Message::PrintCurrentStackTrace(isolate, fp);
-    }
-#else
     fprintf(fp, "No stack trace available\n");
-#endif
     break;
   case kSignal_JS:
   case kSignal_UV:
