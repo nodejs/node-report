@@ -5,7 +5,7 @@
 #ifndef _WIN32
 #include <unistd.h>
 #include <sys/types.h>
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(_AIX)
 #include <features.h>
 #endif
 #endif
