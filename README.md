@@ -1,46 +1,54 @@
 # nodereport
 
-nodereport is an add-on for Node.js, delivered as an NPM native module,
+nodereport is an add-on for Node.js, delivered as an npm native module,
 which provides a human-readable diagnostic summary report, written
 to file. The report is intended for development, test and production
 use, to capture and preserve information for problem determination.
-It includes Javascript and native stack traces, heap statistics,
+It includes JavaScript and native stack traces, heap statistics,
 platform information and resource usage etc. With the report enabled,
 reports can be triggered on unhandled exceptions, fatal errors, signals
-and calls to a Javascript API.
+and calls to a JavaScript API. The module supports Node.js v4, v6 and v7
+on Linux, MacOS and Windows.
 
 Usage:
 
-    npm install nodejs/nodereport
-
-    var nodereport = require('nodereport');
+    npm install nodereport
 
 By default, this will allow a NodeReport to be triggered via an API
-call from a JavaScript application. The filename of the NodeReport is
-returned. The default filename includes the date, time, PID and a
-sequence number. Alternatively a filename can be specified on the API call.
+call from a JavaScript application.
 
+    var nodereport = require('nodereport');
     nodereport.triggerReport();
 
-    var filename = nodereport.triggerReport();
+Content of the NodeReport consists of a header section containing the event
+type, date, time, PID and Node version, sections containing JavaScript and
+native stack traces, a section containing V8 heap information, a section
+containing libuv handle information and an OS platform information section
+showing CPU and memory usage and system limits. An example NodeReport can be
+triggered using the Node.js REPL:
+
+    C:\test>node
+    > nodereport = require('nodereport')
+    > nodereport.triggerReport()
+    Writing Node.js report to file: NodeReport.20161020.091102.8480.001.txt
+    Node.js report completed
+    >
+
+When a NodeReport is triggered, start and end messages are issued to stderr
+and the filename of the report is returned to the caller. The default filename
+includes the date, time, PID and a sequence number. Alternatively, a filename
+can be specified as a parameter on the triggerReport() call.
 
     nodereport.triggerReport("myReportName");
 
-Content of the NodeReport in the initial implementation consists of a
-header section containing the event type, date, time, PID and Node version,
-sections containing Javascript and native stack traces, a section containing
-V8 heap information, a section containing libuv handle information and an OS
-platform information section showing CPU and memory usage and system limits.
-The following messages are issued to stderr when a NodeReport is triggered:
-
-    Writing Node.js error report to file: NodeReport.201605113.145311.26249.001.txt
-    Node.js error report completed
-
-A NodeReport can also be triggered on unhandled exception and fatal error
-events, and/or signals (Linux/OSX only). These and other options can be 
-enabled or disabled using the following APIs:
+A NodeReport can also be triggered automatically on unhandled exceptions, fatal
+error events (for example out of memory errors), and signals (Linux/MacOS only).
+Triggering on these events can be enabled using the following API call:
 
     nodereport.setEvents("exception+fatalerror+signal+apicall");
+
+Additional configuration is available using the following APIs:
+
     nodereport.setSignal("SIGUSR2|SIGQUIT");
     nodereport.setFileName("stdout|stderr|<filename>");
     nodereport.setDirectory("<full path>");
@@ -56,10 +64,11 @@ Configuration on module initialisation is also available via environment variabl
     export NODEREPORT_COREDUMP=yes|no
     export NODEREPORT_VERBOSE=yes|no
 
-Sample programs for triggering NodeReports are provided in the
-node_modules/nodereport/demo directory:
+To see examples of NodeReports generated from these events you can run the
+demonstration applications provided in the nodereport github repository. These are
+Node.js applications which will prompt you to trigger the required event.
 
-    api.js - NodeReport triggered by Javascript API call
-    exception.js - NodeReport triggered by unhandled exception
-    fatalerror.js - NodeReport triggered by fatal error on Javascript heap out of memory
-    loop.js - looping application, NodeReport triggered using kill -USR2 <pid>
+1. api.js - NodeReport triggered by JavaScript API call
+2. exception.js - NodeReport triggered by unhandled exception
+3. fatalerror.js - NodeReport triggered by fatal error on JavaScript heap out of memory
+4. loop.js - looping application, NodeReport triggered using kill -USR2 <pid>
