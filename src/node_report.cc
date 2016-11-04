@@ -29,7 +29,9 @@
 #include <inttypes.h>
 #include <cxxabi.h>
 #include <dlfcn.h>
+#ifndef _AIX
 #include <execinfo.h>
+#endif
 #include <sys/utsname.h>
 #endif
 
@@ -580,6 +582,16 @@ void PrintNativeStack(FILE* fp) {
     }
   }
 }
+#elif _AIX
+/*******************************************************************************
+ * Function to print a native stack backtrace - AIX
+ *
+ ******************************************************************************/
+void PrintNativeStack(FILE* fp) {
+  fprintf(fp, "\n================================================================================");
+  fprintf(fp, "\n==== Native Stack Trace ========================================================\n\n");
+  fprintf(fp, "Native stack trace not supported on AIX\n");
+}
 #else
 /*******************************************************************************
  * Function to print a native stack backtrace - Linux/OSX
@@ -683,7 +695,7 @@ static void PrintResourceUsage(FILE* fp) {
   struct rusage stats;
   fprintf(fp, "\nProcess total resource usage:");
   if (getrusage(RUSAGE_SELF, &stats) == 0) {
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(_AIX)
     fprintf(fp, "\n  User mode CPU: %ld.%06d secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
     fprintf(fp, "\n  Kernel mode CPU: %ld.%06d secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
 #else
@@ -698,8 +710,13 @@ static void PrintResourceUsage(FILE* fp) {
 #ifdef RUSAGE_THREAD
   fprintf(fp, "\n\nEvent loop thread resource usage:");
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
+#if defined(__APPLE__) || defined(_AIX)
+    fprintf(fp, "\n  User mode CPU: %ld.%06d secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    fprintf(fp, "\n  Kernel mode CPU: %ld.%06d secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+#else
     fprintf(fp, "\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
     fprintf(fp, "\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+#endif
     fprintf(fp, "\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
   }
 #endif
@@ -748,7 +765,9 @@ const static struct {
   {"core file size (blocks)       ", RLIMIT_CORE},
   {"data seg size (kbytes)        ", RLIMIT_DATA},
   {"file size (blocks)            ", RLIMIT_FSIZE},
+#ifndef _AIX
   {"max locked memory (bytes)     ", RLIMIT_MEMLOCK},
+#endif
   {"max memory size (kbytes)      ", RLIMIT_RSS},
   {"open files                    ", RLIMIT_NOFILE},
   {"stack size (bytes)            ", RLIMIT_STACK},
@@ -766,12 +785,20 @@ const static struct {
       if (limit.rlim_cur == RLIM_INFINITY) {
         fprintf(fp, "       unlimited");
       } else {
+#ifdef _AIX
+        fprintf(fp, "%16ld", limit.rlim_cur);
+#else
         fprintf(fp, "%16" PRIu64, limit.rlim_cur);
+#endif
       }
       if (limit.rlim_max == RLIM_INFINITY) {
         fprintf(fp, "       unlimited\n");
       } else {
+#ifdef _AIX
+        fprintf(fp, "%16ld\n", limit.rlim_max);
+#else
         fprintf(fp, "%16" PRIu64 "\n", limit.rlim_max);
+#endif
       }
     }
   }
