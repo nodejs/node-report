@@ -18,7 +18,7 @@
 #include <Windows.h>
 #include <process.h>
 #include <dbghelp.h>
-#include <VersionHelpers.h>
+#include <Lm.h>
 #else
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -378,28 +378,70 @@ static void PrintVersionInformation(FILE* fp) {
 
   // Print operating system and machine information (Windows)
 #ifdef _WIN32
-  fprintf(fp, "\nOS version: Windows ");
-#if defined(_MSC_VER) && (_MSC_VER >= 1900)
-  if (IsWindows1OrGreater()) {
-    fprintf(fp, "10 ");
-  } else
-#endif
-  if (IsWindows8OrGreater()) {
-    fprintf(fp, "8 ");
-  } else if (IsWindows7OrGreater()) {
-    fprintf(fp, "7 ");
-  } else if (IsWindowsXPOrGreater()) {
-    fprintf(fp, "XP ");
-  }
-  if (IsWindowsServer()) {
-    fprintf(fp, "Server\n");
-  } else {
-    fprintf(fp, "Client\n");
-  }
-  TCHAR machine_name[256];
-  DWORD machine_name_size = 256;
-  if (GetComputerName(machine_name, &machine_name_size)) {
-    fprintf(fp, "\nMachine: %s %s\n", machine_name);
+  {
+    const DWORD level = 101;
+    LPSERVER_INFO_101 os_info = NULL;
+    NET_API_STATUS nStatus = NetServerGetInfo(NULL, level, (LPBYTE *)&os_info);
+    if (nStatus == NERR_Success) {
+      LPSTR os_name = "Windows";
+      const DWORD major = os_info->sv101_version_major & MAJOR_VERSION_MASK;
+      const DWORD type = os_info->sv101_type;
+      const bool isServer = (type & SV_TYPE_DOMAIN_CTRL) ||
+                            (type & SV_TYPE_DOMAIN_BAKCTRL) ||
+                            (type & SV_TYPE_SERVER_NT);
+      switch (major) {
+        case 5:
+          switch (os_info->sv101_version_minor) {
+            case 0:
+              os_name = "Windows 2000";
+              break;
+            default:
+              os_name = (isServer ? "Windows Server 2003" : "Windows XP");
+          }
+          break;
+        case 6:
+          switch (os_info->sv101_version_minor) {
+            case 0:
+              os_name = (isServer ? "Windows Server 2008" : "Windows Vista");
+              break;
+            case 1:
+              os_name = (isServer ? "Windows Server 2008 R2" : "Windows 7");
+              break;
+            case 2:
+              os_name = (isServer ? "Windows Server 2012" : "Windows 8");
+              break;
+            case 3:
+              os_name = (isServer ? "Windows Server 2012 R2" : "Windows 8.1");
+              break;
+            default:
+              os_name = (isServer ? "Windows Server" : "Windows Client");
+          }
+          break;
+        case 10:
+          os_name = (isServer ? "Windows Server 2016" : "Windows 10");
+          break;
+        default:
+          os_name = (isServer ? "Windows Server" : "Windows Client");
+      }
+      fprintf(fp, "\nOS version: %s\n", os_name);
+
+      if (os_info->sv101_comment != NULL) {
+        fprintf(fp, "\nMachine: %ls %ls\n", os_info->sv101_name,
+                os_info->sv101_comment);
+      } else {
+        fprintf(fp, "\nMachine: %ls\n", os_info->sv101_name);
+      }
+      if (os_info != NULL) {
+        NetApiBufferFree(os_info);
+      }
+    } else {
+      TCHAR machine_name[256];
+      DWORD machine_name_size = 256;
+      fprintf(fp, "\nOS version: Windows\n");
+      if (GetComputerName(machine_name, &machine_name_size)) {
+        fprintf(fp, "\nMachine: %s\n", machine_name);
+      }
+    }
   }
 #else
   // Print operating system and machine information (Unix/OSX)
