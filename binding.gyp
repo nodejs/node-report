@@ -10,8 +10,8 @@
           "cflags": [ "-g", "-O2", "-std=c++11", ],
         }],
         ["OS=='win'", {
-          "libraries": [ "dbghelp.lib" ],
-          "dll_files": [ "dbghelp.dll" ],
+          "libraries": [ "dbghelp.lib", "Netapi32.lib" ],
+          "dll_files": [ "dbghelp.dll", "Netapi32.dll" ],
         }],
       ],
     },
