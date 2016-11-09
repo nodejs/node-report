@@ -8,7 +8,7 @@ It includes JavaScript and native stack traces, heap statistics,
 platform information and resource usage etc. With the report enabled,
 reports can be triggered on unhandled exceptions, fatal errors, signals
 and calls to a JavaScript API. The module supports Node.js v4, v6 and v7
-on Linux, MacOS and Windows.
+on Linux, MacOS, Windows and AIX.
 
 Usage:
 
