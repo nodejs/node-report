@@ -22,8 +22,9 @@ if (process.argv[2] === 'child') {
 
   const child = spawn(process.execPath, [__filename, 'child']);
   child.on('exit', (code, signal) => {
-    const expectedExitCode = process.platform === 'win32' ? 0xC0000005 : null;
-    const expectedSignal = process.platform === 'win32' ? null : 'SIGILL';
+    const expectedExitCode = common.isWindows() ? 0xC0000005 : null;
+    const expectedSignal = common.isWindows() ? null :
+                           common.isPPC() ? 'SIGTRAP' : 'SIGILL';
     tap.plan(4);
     tap.equal(code, expectedExitCode, 'Process should not exit cleanly');
     tap.equal(signal, expectedSignal,

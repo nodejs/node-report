@@ -36,7 +36,7 @@ if (process.argv[2] === 'child') {
   const fork = require('child_process').fork;
   const tap = require('tap');
 
-  if (process.platform === 'win32') {
+  if (common.isWindows()) {
     tap.fail('Unsupported on Windows', { skip: true });
     return;
   }
