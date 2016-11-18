@@ -17,6 +17,14 @@ exports.findReports = (pid) => {
   return files.filter((file) => filePattern.test(file));
 };
 
+exports.isPPC = () => {
+  return process.arch.startsWith('ppc');
+};
+
+exports.isWindows = () => {
+  return process.platform === 'win32';
+};
+
 exports.validate = (t, report, pid) => {
   t.test('Validating ' + report, (t) => {
     fs.readFile(report, (err, data) => {
