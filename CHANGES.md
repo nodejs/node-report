@@ -1,3 +1,15 @@
+2016-11-18, Version 1.0.6
+=========================
+
+ * Fix test-exception.js for PPC (Richard Lau)
+
+ * Improve README.md (Jeremiah Senkpiel)
+
+ * Improvement to Windows version reporting (Richard Lau)
+
+ * Convert testcases to use tap (Richard Lau)
+
+
 2016-11-10, Version 1.0.5
 =========================
 
