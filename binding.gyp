@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "nodereport",
+      "target_name": "api",
       "sources": [ "src/node_report.cc", "src/module.cc" ],
       "include_dirs": [ '<!(node -e "require(\'nan\')")' ],
       "conditions": [
@@ -18,11 +18,11 @@
     {
       "target_name": "install",
       "type":"none",
-      "dependencies" : [ "nodereport" ],
+      "dependencies" : [ "api" ],
       "copies": [
         {
           "destination": "<(module_root_dir)",
-          "files": ["<(module_root_dir)/build/Release/nodereport.node"]
+          "files": ["<(module_root_dir)/build/Release/api.node"]
         }]
     },
   ],

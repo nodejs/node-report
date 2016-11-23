@@ -21,14 +21,9 @@ if (process.argv[2] === 'child') {
   const tap = require('tap');
 
   const child = spawn(process.execPath, [__filename, 'child']);
-  child.on('exit', (code, signal) => {
-    const expectedExitCode = common.isWindows() ? 0xC0000005 : null;
-    const expectedSignal = common.isWindows() ? null :
-                           common.isPPC() ? 'SIGTRAP' : 'SIGILL';
-    tap.plan(4);
-    tap.equal(code, expectedExitCode, 'Process should not exit cleanly');
-    tap.equal(signal, expectedSignal,
-              'Process should exit with expected signal ');
+  child.on('exit', (code) => {
+    tap.plan(3);
+    tap.equal(code, 1, 'Process should exit with expected return code');
     const reports = common.findReports(child.pid);
     tap.equal(reports.length, 1, 'Found reports ' + reports);
     const report = reports[0];

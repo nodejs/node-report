@@ -19,7 +19,7 @@ static void SetupSignalHandler();
 
 // Default nodereport option settings
 static unsigned int nodereport_events = NR_APICALL;
-static unsigned int nodereport_core = 1;
+static unsigned int nodereport_core = 0;
 static unsigned int nodereport_verbose = 0;
 #ifdef _WIN32  // signal trigger not supported on Windows
 static unsigned int nodereport_signal = 0;
