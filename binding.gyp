@@ -14,6 +14,9 @@
           "dll_files": [ "dbghelp.dll", "Netapi32.dll" ],
         }],
       ],
+      "defines": [
+        'NODEREPORT_VERSION="<!(node -p \"require(\'./package.json\').version\")"'
+      ],
     },
     {
       "target_name": "install",

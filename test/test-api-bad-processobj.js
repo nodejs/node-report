@@ -1,7 +1,9 @@
 'use strict';
 
-// Testcase to produce NodeReport via API call
+// Testcase to check NodeReport succeeds if process.versions is damaged
 if (process.argv[2] === 'child') {
+  // Tamper with the process object
+  Object.defineProperty(process, 'versions', {get() { throw 'boom'; }});
   const nodereport = require('../');
   nodereport.triggerReport();
 } else {
@@ -16,6 +18,7 @@ if (process.argv[2] === 'child') {
     const reports = common.findReports(child.pid);
     tap.equal(reports.length, 1, 'Found reports ' + reports);
     const report = reports[0];
-    common.validate(tap, report, {pid: child.pid});
+    const validateOpts = { pid: child.pid, expectedVersions: [] };
+    common.validate(tap, report, validateOpts);
   });
 }
