@@ -598,21 +598,20 @@ void PrintNativeStack(FILE* fp) {
     pSymbol->MaxNameLen = MAX_SYM_NAME;
 
     if (SymFromAddr(hProcess, dwAddress, &dwOffset64, pSymbol)) {
-        DWORD dwOffset = 0;
-        IMAGEHLP_LINE64 line;
-        line.SizeOfStruct = sizeof(line);
-        if (SymGetLineFromAddr64(hProcess, dwAddress, &dwOffset, &line)) {
-          fprintf(fp, "%2d: [pc=0x%p] %s [+%d] in %s: line: %lu\n", i, pSymbol->Address, pSymbol->Name, dwOffset, line.FileName, line.LineNumber);
-        } else {
-          // SymGetLineFromAddr64() failed, just print the address and symbol
-          if (dwOffset64 <= 32) { // sanity check
-            fprintf(fp, "%2d: [pc=0x%p] %s [+%d]\n", i, pSymbol->Address, pSymbol->Name, dwOffset64);
-          } else {
-            fprintf(fp, "%2d: [pc=0x%p]\n", i, pSymbol->Address);
-          }
-        }
+      DWORD dwOffset = 0;
+      IMAGEHLP_LINE64 line;
+      line.SizeOfStruct = sizeof(line);
+      if (SymGetLineFromAddr64(hProcess, dwAddress, &dwOffset, &line)) {
+        fprintf(fp, "%2d: [pc=0x%p] %s [+%d] in %s: line: %lu\n", i,
+          reinterpret_cast<void*>(pSymbol->Address), pSymbol->Name,
+          dwOffset, line.FileName, line.LineNumber);
+      } else {
+        fprintf(fp, "%2d: [pc=0x%p] %s [+%lld]\n", i,
+          reinterpret_cast<void*>(pSymbol->Address), pSymbol->Name,
+          dwOffset64);
+      }
     } else { // SymFromAddr() failed, just print the address
-      fprintf(fp, "%2d: [pc=0x%p]\n", i, pSymbol->Address);
+      fprintf(fp, "%2d: [pc=0x%p]\n", i, reinterpret_cast<void*>(dwAddress));
     }
   }
 }
