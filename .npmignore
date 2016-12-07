@@ -1,4 +1,4 @@
 *
 !src/**
 !binding.gyp
-!main.js
+!index.js
