@@ -1,9 +1,9 @@
 // Main module entry point for nodereport
 
-var api = require('./api');
+const api = require('./api');
 
 // Process NODEREPORT_EVENTS env var
-var options = process.env.NODEREPORT_EVENTS;
+const options = process.env.NODEREPORT_EVENTS;
 if (options) {
   api.setEvents(options);
 } else {
