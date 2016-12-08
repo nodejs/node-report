@@ -28,6 +28,6 @@ if (process.argv[2] === 'child') {
     const reports = common.findReports(child.pid);
     tap.equal(reports.length, 1, 'Found reports ' + reports);
     const report = reports[0];
-    common.validate(tap, report, child.pid);
+    common.validate(tap, report, {pid: child.pid});
   });
 }

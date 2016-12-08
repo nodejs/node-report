@@ -43,6 +43,7 @@ void ProcessNodeReportDirectory(const char* args);
 unsigned int ProcessNodeReportVerboseSwitch(const char* args);
 
 void SetLoadTime();
+void SetVersionString(Isolate* isolate);
 
 // Local implementation of secure_getenv()
 inline const char* secure_getenv(const char* key) {
