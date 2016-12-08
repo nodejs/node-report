@@ -13,6 +13,12 @@
           "libraries": [ "dbghelp.lib", "Netapi32.lib" ],
           "dll_files": [ "dbghelp.dll", "Netapi32.dll" ],
         }],
+        ["OS=='mac'", {
+          "xcode_settings": {
+            'CLANG_CXX_LIBRARY': 'libc++',
+            'CLANG_CXX_LANGUAGE_STANDARD':'c++11',
+          }
+        }],
       ],
     },
     {
