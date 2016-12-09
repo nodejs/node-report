@@ -15,13 +15,24 @@ Supports Node.js v4, v6 and v7 on Linux, MacOS, Windows and AIX.
 
 ```bash
 npm install nodereport
+node -r nodereport app.js
 ```
+A NodeReport will be triggered automatically on unhandled exceptions and fatal
+error events (for example out of memory errors), and can also be triggered
+by sending a USR2 signal to a Node.js process (Linux/MacOS only).
 
-This will allow a NodeReport to be triggered via an API
-call from a JavaScript application.
+A NodeReport can also be triggered via an API call from a JavaScript
+application.
 
 ```js
 var nodereport = require('nodereport');
+nodereport.triggerReport();
+```
+The API can be used without adding the automatic exception and fatal error
+hooks and the signal handler, as follows:
+
+```js
+var nodereport = require('nodereport/api');
 nodereport.triggerReport();
 ```
 
@@ -50,19 +61,12 @@ can be specified as a parameter on the `triggerReport()` call.
 nodereport.triggerReport("myReportName");
 ```
 
-A NodeReport can also be triggered automatically on unhandled exceptions, fatal
-error events (for example out of memory errors), and signals (Linux/MacOS only).
-Triggering on these events can be enabled using the following API call:
-
-```js
-nodereport.setEvents("exception+fatalerror+signal+apicall");
-```
-
 ## Configuration
 
 Additional configuration is available using the following APIs:
 
 ```js
+nodereport.setEvents("exception+fatalerror+signal+apicall");
 nodereport.setSignal("SIGUSR2|SIGQUIT");
 nodereport.setFileName("stdout|stderr|<filename>");
 nodereport.setDirectory("<full path>");

@@ -1,6 +1,5 @@
 {
   "name": "nodereport",
-  "main": "nodereport.node",
   "version": "1.0.6",
   "description": "Diagnostic NodeReport",
   "homepage": "https://github.com/nodejs/nodereport#readme",

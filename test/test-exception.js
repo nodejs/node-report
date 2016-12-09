@@ -2,7 +2,7 @@
 
 // Testcase to produce NodeReport on uncaught exception
 if (process.argv[2] === 'child') {
-  require('../').setEvents('exception');
+  require('../');
 
   function myException(request, response) {
     const m = '*** exception.js: testcase exception thrown from myException()';
