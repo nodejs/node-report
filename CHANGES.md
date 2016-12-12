@@ -1,3 +1,11 @@
+2016-12-12, Version 1.0.7
+=========================
+
+ * Fix version reporting in NodeReport section (Richard Lau)
+
+ * Fix fprintf calls on Windows (Richard Lau)
+
+
 2016-11-18, Version 1.0.6
 =========================
 
