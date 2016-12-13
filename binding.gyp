@@ -31,7 +31,7 @@
       "copies": [
         {
           "destination": "<(module_root_dir)",
-          "files": ["<(module_root_dir)/build/Release/api.node"]
+          "files": ["<(PRODUCT_DIR)/api.node"]
         }]
     },
   ],
