@@ -3,7 +3,7 @@
 // Testcase to produce NodeReport on signal interrupting a js busy-loop,
 // showing it is interruptible.
 if (process.argv[2] === 'child') {
-  require('../').setEvents('signal');
+  require('../');
 
   // Exit on loss of parent process
   process.on('disconnect', () => process.exit(2));
