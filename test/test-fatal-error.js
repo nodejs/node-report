@@ -2,7 +2,7 @@
 
 // Testcase to produce NodeReport on fatal error (javascript heap OOM)
 if (process.argv[2] === 'child') {
-  require('../').setEvents('fatalerror');
+  require('../');
 
   const list = [];
   while (true) {
