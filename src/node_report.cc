@@ -1,11 +1,9 @@
 #include "node_report.h"
-#include "node_version.h"
 #include "v8.h"
 #include "time.h"
-#include "zlib.h"
-#include "ares.h"
 
 #include <fcntl.h>
+#include <map>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +33,14 @@
 #include <sys/utsname.h>
 #endif
 
+#if !defined(NODEREPORT_VERSION)
+#define NODEREPORT_VERSION "dev"
+#endif
+
+#if !defined(UNKNOWN_NODEVERSION_STRING)
+#define UNKNOWN_NODEVERSION_STRING "Unable to determine Node.js version\n"
+#endif
+
 #ifndef _WIN32
 extern char** environ;
 #endif
@@ -52,7 +58,7 @@ using v8::String;
 using v8::V8;
 
 // Internal/static function declarations
-static void PrintVersionInformation(FILE* fp);
+static void PrintVersionInformation(FILE* fp, Isolate* isolate);
 static void PrintJavaScriptStack(FILE* fp, Isolate* isolate, DumpEvent event, const char* location);
 static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event);
 static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame, int index, void* pc);
@@ -70,6 +76,7 @@ const char* v8_states[] = {"JS", "GC", "COMPILER", "OTHER", "EXTERNAL", "IDLE"};
 static bool report_active = false; // recursion protection
 static char report_filename[NR_MAXNAME + 1] = "";
 static char report_directory[NR_MAXPATH + 1] = ""; // defaults to current working directory
+static std::string version_string = UNKNOWN_NODEVERSION_STRING;
 #ifdef _WIN32
 static SYSTEMTIME loadtime_tm_struct; // module load time
 #else  // UNIX, OSX
@@ -187,6 +194,97 @@ unsigned int ProcessNodeReportVerboseSwitch(const char* args) {
     fprintf(stderr, "Unrecognised argument for nodereport verbose switch option: %s\n", args);
   }
   return 0;  // Default is verbose mode off
+}
+
+void SetVersionString(Isolate* isolate) {
+  // Catch anything thrown and gracefully return
+  Nan::TryCatch trycatch;
+  version_string = UNKNOWN_NODEVERSION_STRING;
+
+  // Retrieve the process object
+  v8::Local<v8::String> process_prop;
+  if (!Nan::New<v8::String>("process").ToLocal(&process_prop)) return;
+  v8::Local<v8::Object> global_obj = isolate->GetCurrentContext()->Global();
+  v8::Local<v8::Value> process_value;
+  if (!Nan::Get(global_obj, process_prop).ToLocal(&process_value)) return;
+  if (!process_value->IsObject()) return;
+  v8::Local<v8::Object> process_obj = process_value.As<v8::Object>();
+
+  // Get process.version
+  v8::Local<v8::String> version_prop;
+  if (!Nan::New<v8::String>("version").ToLocal(&version_prop)) return;
+  v8::Local<v8::Value> version;
+  if (!Nan::Get(process_obj, version_prop).ToLocal(&version)) return;
+
+  // e.g. Node.js version: v6.9.1
+  if (version->IsString()) {
+    Nan::Utf8String node_version(version);
+    version_string = "Node.js version: ";
+    version_string += *node_version;
+    version_string += "\n";
+  }
+
+  // Get process.versions
+  v8::Local<v8::String> versions_prop;
+  if (!Nan::New<v8::String>("versions").ToLocal(&versions_prop)) return;
+  v8::Local<v8::Value> versions_value;
+  if (!Nan::Get(process_obj, versions_prop).ToLocal(&versions_value)) return;
+  if (!versions_value->IsObject()) return;
+  v8::Local<v8::Object> versions_obj = versions_value.As<v8::Object>();
+
+  // Get component names and versions from process.versions
+  v8::Local<v8::Array> components;
+  if (!Nan::GetOwnPropertyNames(versions_obj).ToLocal(&components)) return;
+  v8::Local<v8::Object> components_obj = components.As<v8::Object>();
+  std::map<std::string, std::string> comp_versions;
+  uint32_t total_components = (*components)->Length();
+  for (uint32_t i = 0; i < total_components; i++) {
+    v8::Local<v8::Value> name_value;
+    if (!Nan::Get(components_obj, i).ToLocal(&name_value)) continue;
+    v8::Local<v8::Value> version_value;
+    if (!Nan::Get(versions_obj, name_value).ToLocal(&version_value)) continue;
+
+    Nan::Utf8String component_name(name_value);
+    Nan::Utf8String component_version(version_value);
+    if (*component_name == nullptr || *component_version == nullptr) continue;
+
+    // Don't duplicate the Node.js version
+    if (!strcmp("node", *component_name)) {
+      if (version_string == UNKNOWN_NODEVERSION_STRING) {
+        version_string = "Node.js version: v";
+        version_string += *component_version;
+        version_string += "\n";
+      }
+    } else {
+      comp_versions[*component_name] = *component_version;
+    }
+  }
+
+  // Format sorted component versions surrounded by (), wrapped
+  // e.g.
+  // (ares: 1.10.1-DEV, http_parser: 2.7.0, icu: 57.1, modules: 48,
+  //  openssl: 1.0.2j, uv: 1.9.1, v8: 5.1.281.84, zlib: 1.2.8)
+  const size_t wrap = 80;
+  size_t line_length = 1;
+  version_string += "(";
+  for (auto it : comp_versions) {
+    std::string component_name = it.first;
+    std::string component_version = it.second;
+    size_t length = component_name.length() + component_version.length() + 2;
+    if (line_length + length + 1 >= wrap) {
+      version_string += "\n ";
+      line_length = 1;
+    }
+    version_string += component_name;
+    version_string += ": ";
+    version_string += component_version;
+    line_length += length;
+    if (it != *std::prev(comp_versions.end())) {
+      version_string += ", ";
+      line_length += 2;
+    }
+  }
+  version_string += ")\n";
 }
 
 /*******************************************************************************
@@ -317,7 +415,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
   fflush(fp);
 
   // Print Node.js and OS version information
-  PrintVersionInformation(fp);
+  PrintVersionInformation(fp, isolate);
   fflush(fp);
 
 // Print summary JavaScript stack backtrace
@@ -369,12 +467,15 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
  * Function to print Node.js version, OS version and machine information
  *
  ******************************************************************************/
-static void PrintVersionInformation(FILE* fp) {
+static void PrintVersionInformation(FILE* fp, Isolate* isolate) {
 
   // Print Node.js and deps component versions
-  fprintf(fp, "\nNode.js version: %s\n", NODE_VERSION);
-  fprintf(fp, "(v8: %s, libuv: %s, zlib: %s, ares: %s)\n",
-          V8::GetVersion(), uv_version_string(), ZLIB_VERSION, ARES_VERSION_STR);
+  fprintf(fp, "\n%s", version_string.c_str());
+
+  // Print NodeReport version
+  // e.g. NodeReport version: 1.0.6 (built against Node.js v6.9.1)
+  fprintf(fp, "\nNodeReport version: %s (built against Node.js v%s)\n",
+          NODEREPORT_VERSION, NODE_VERSION_STRING);
 
   // Print operating system and machine information (Windows)
 #ifdef _WIN32
