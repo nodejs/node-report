@@ -2,14 +2,9 @@
 
 const api = require('./api');
 
-// Process NODEREPORT_EVENTS env var
-const options = process.env.NODEREPORT_EVENTS;
-if (options) {
-  api.setEvents(options);
-} else {
-  // Default action - all events enabled
-  api.setEvents('exception+fatalerror+signal+apicall');
-}
+// NODEREPORT_EVENTS env var overrides the defaults
+const options = process.env.NODEREPORT_EVENTS || 'exception+fatalerror+signal+apicall';
+api.setEvents(options);
 
 exports.triggerReport = api.triggerReport;
 exports.setEvents = api.setEvents;
