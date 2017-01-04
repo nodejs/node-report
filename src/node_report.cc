@@ -29,6 +29,8 @@
 #include <dlfcn.h>
 #ifndef _AIX
 #include <execinfo.h>
+#else
+#include <sys/procfs.h>
 #endif
 #include <sys/utsname.h>
 #endif
@@ -39,6 +41,11 @@
 
 #if !defined(UNKNOWN_NODEVERSION_STRING)
 #define UNKNOWN_NODEVERSION_STRING "Unable to determine Node.js version\n"
+#endif
+
+#ifdef __APPLE__
+// Include _NSGetArgv and _NSGetArgc for command line arguments.
+#include <crt_externs.h>
 #endif
 
 #ifndef _WIN32
@@ -58,6 +65,7 @@ using v8::String;
 using v8::V8;
 
 // Internal/static function declarations
+static void PrintCommandLine(FILE* fp);
 static void PrintVersionInformation(FILE* fp, Isolate* isolate);
 static void PrintJavaScriptStack(FILE* fp, Isolate* isolate, DumpEvent event, const char* location);
 static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event);
@@ -77,6 +85,7 @@ static bool report_active = false; // recursion protection
 static char report_filename[NR_MAXNAME + 1] = "";
 static char report_directory[NR_MAXPATH + 1] = ""; // defaults to current working directory
 static std::string version_string = UNKNOWN_NODEVERSION_STRING;
+static std::string commandline_string = "";
 #ifdef _WIN32
 static SYSTEMTIME loadtime_tm_struct; // module load time
 #else  // UNIX, OSX
@@ -299,6 +308,67 @@ void SetLoadTime() {
   localtime_r(&time_val.tv_sec, &loadtime_tm_struct);
 #endif
 }
+
+/*******************************************************************************
+ * Function to save the process command line
+ *******************************************************************************/
+void SetCommandLine() {
+#ifdef __linux__
+  // Read the command line from /proc/self/cmdline
+  char buf[64];
+  FILE* cmdline_fd = fopen("/proc/self/cmdline", "r");
+  if (cmdline_fd == nullptr) {
+    return;
+  }
+  commandline_string = "";
+  int bytesread = fread(buf, 1, sizeof(buf), cmdline_fd);
+  while (bytesread > 0) {
+    for (int i = 0; i < bytesread; i++) {
+      // Arguments are null separated.
+      if (buf[i] == '\0') {
+        commandline_string += " ";
+      } else {
+        commandline_string += buf[i];
+      }
+    }
+    bytesread = fread(buf, 1, sizeof(buf), cmdline_fd);
+  }
+  fclose(cmdline_fd);
+#elif __APPLE__
+  char **argv = *_NSGetArgv();
+  int argc = *_NSGetArgc();
+
+  commandline_string = "";
+  std::string separator = "";
+  for (int i = 0; i < argc; i++) {
+    commandline_string += separator + argv[i];
+    separator = " ";
+  }
+#elif _AIX
+  // Read the command line from /proc/self/cmdline
+  char procbuf[64];
+  snprintf(procbuf, sizeof(procbuf), "/proc/%d/psinfo", getpid());
+  FILE* psinfo_fd = fopen(procbuf, "r");
+  if (psinfo_fd == nullptr) {
+    return;
+  }
+  psinfo_t info;
+  int bytesread = fread(&info, 1, sizeof(psinfo_t), psinfo_fd);
+  fclose(psinfo_fd);
+  if (bytesread == sizeof(psinfo_t)) {
+    commandline_string = "";
+    std::string separator = "";
+    char **argv = *((char ***) info.pr_argv);
+    for (uint32_t i = 0; i < info.pr_argc; i++) {
+      commandline_string += separator + argv[i];
+      separator = " ";
+    }
+  }
+#elif _WIN32
+  commandline_string = GetCommandLine();
+#endif
+}
+
 /*******************************************************************************
  * Main API function to write a NodeReport to file.
  *
@@ -311,7 +381,7 @@ void SetLoadTime() {
  ******************************************************************************/
 void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name) {
   // Recursion check for NodeReport in progress, bail out
-  if (report_active) return; 
+  if (report_active) return;
   report_active = true;
 
   // Obtain the current time and the pid (platform dependent)
@@ -414,6 +484,10 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
   fprintf(fp, "Process ID: %d\n", pid);
   fflush(fp);
 
+  // Print out the command line.
+  PrintCommandLine(fp);
+  fflush(fp);
+
   // Print Node.js and OS version information
   PrintVersionInformation(fp, isolate);
   fflush(fp);
@@ -461,6 +535,16 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
     snprintf(name, NR_MAXNAME + 1, "%s", filename);  // return the NodeReport file name
   }
   report_active = false;
+}
+
+/*******************************************************************************
+ * Function to print process command line.
+ *
+ ******************************************************************************/
+static void PrintCommandLine(FILE* fp) {
+  if (commandline_string != "") {
+    fprintf(fp, "Command line: %s\n", commandline_string.c_str());
+  }
 }
 
 /*******************************************************************************
@@ -688,7 +772,7 @@ void PrintNativeStack(FILE* fp) {
   SymInitialize(hProcess, nullptr, TRUE);
 
   WORD numberOfFrames = CaptureStackBackTrace(2, 64, frames, nullptr);
-  
+
   // Walk the frames printing symbolic information if available
   for (int i = 0; i < numberOfFrames; i++) {
     DWORD64 dwOffset64 = 0;

@@ -303,6 +303,7 @@ void Initialize(v8::Local<v8::Object> exports) {
 
   SetLoadTime();
   SetVersionString(isolate);
+  SetCommandLine();
 
   const char* verbose_switch = secure_getenv("NODEREPORT_VERBOSE");
   if (verbose_switch != nullptr) {

@@ -36,16 +36,16 @@ exports.validate = (t, report, options) => {
       const expectedVersions = options ?
                                options.expectedVersions || nodeComponents :
                                nodeComponents;
-      const plan = REPORT_SECTIONS.length + nodeComponents.length + 2;
+      var plan = REPORT_SECTIONS.length + nodeComponents.length + 2;
+      if (options.commandline) plan++;
       t.plan(plan);
-
       // Check all sections are present
       REPORT_SECTIONS.forEach((section) => {
         t.match(reportContents, new RegExp('==== ' + section),
                 'Checking report contains ' + section + ' section');
       });
 
-      // Check NodeReport section
+      // Check NodeReport header section
       const nodeReportSection = getSection(reportContents, 'NodeReport');
       t.match(nodeReportSection, new RegExp('Process ID: ' + pid),
               'NodeReport section contains expected process ID');
@@ -56,6 +56,20 @@ exports.validate = (t, report, options) => {
         t.match(nodeReportSection,
                 new RegExp('Node.js version: ' + process.version),
                 'NodeReport section contains expected Node.js version');
+      }
+      if (options && options.commandline) {
+        if (this.isWindows()) {
+          // On Windows we need to strip double quotes from the command line in
+          // the report, and escape backslashes in the regex comparison string.
+          t.match(nodeReportSection.replace(/"/g,''),
+                  new RegExp('Command line: '
+                             + (options.commandline).replace(/\\/g,'\\\\')),
+                  'Checking report contains expected command line');
+        } else {
+          t.match(nodeReportSection,
+                  new RegExp('Command line: ' + options.commandline),
+                  'Checking report contains expected command line');
+        }
       }
       nodeComponents.forEach((c) => {
         if (c !== 'node') {
