@@ -313,37 +313,37 @@ void SetLoadTime() {
  * Function to save the process command line
  *******************************************************************************/
 void SetCommandLine() {
-  #ifdef __linux__
-    // Read the command line from /proc/self/cmdline
-    char buf[64];
-    FILE* cmdline_fd = fopen("/proc/self/cmdline", "r");
-    if (cmdline_fd == nullptr) {
-      return;
-    }
-    commandline_string = "";
-    int bytesread = fread(buf, 1, sizeof(buf), cmdline_fd);
-    while (bytesread > 0) {
-      for (int i = 0; i < bytesread; i++) {
-        // Arguments are null separated.
-        if (buf[i] == '\0') {
-          commandline_string += " ";
-        } else {
-          commandline_string += buf[i];
-        }
+#ifdef __linux__
+  // Read the command line from /proc/self/cmdline
+  char buf[64];
+  FILE* cmdline_fd = fopen("/proc/self/cmdline", "r");
+  if (cmdline_fd == nullptr) {
+    return;
+  }
+  commandline_string = "";
+  int bytesread = fread(buf, 1, sizeof(buf), cmdline_fd);
+  while (bytesread > 0) {
+    for (int i = 0; i < bytesread; i++) {
+      // Arguments are null separated.
+      if (buf[i] == '\0') {
+        commandline_string += " ";
+      } else {
+        commandline_string += buf[i];
       }
-      bytesread = fread(buf, 1, sizeof(buf), cmdline_fd);
     }
-    fclose(cmdline_fd);
-  #elif __APPLE__
-    char **argv = *_NSGetArgv();
-    int argc = *_NSGetArgc();
+    bytesread = fread(buf, 1, sizeof(buf), cmdline_fd);
+  }
+  fclose(cmdline_fd);
+#elif __APPLE__
+  char **argv = *_NSGetArgv();
+  int argc = *_NSGetArgc();
 
-    commandline_string = "";
-    std::string seperator = "";
-    for (int i = 0; i < argc; i++) {
-      commandline_string += seperator + argv[i];
-      seperator = " ";
-    }
+  commandline_string = "";
+  std::string seperator = "";
+  for (int i = 0; i < argc; i++) {
+    commandline_string += seperator + argv[i];
+    seperator = " ";
+  }
 #elif _AIX
   // Read the command line from /proc/self/cmdline
   char procbuf[64];
