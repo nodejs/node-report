@@ -45,7 +45,7 @@ exports.validate = (t, report, options) => {
                 'Checking report contains ' + section + ' section');
       });
 
-      // Check NodeReport section
+      // Check NodeReport header section
       const nodeReportSection = getSection(reportContents, 'NodeReport');
       t.contains(nodeReportSection, new RegExp('Process ID: ' + pid),
               'NodeReport section contains expected process ID');
@@ -58,8 +58,17 @@ exports.validate = (t, report, options) => {
                 'NodeReport section contains expected Node.js version');
       }
       if (options && options.commandline) {
-        t.match(nodeReportSection, new RegExp('Command line arguments: ' + options.commandline),
-                'NodeReport section contains expected command line');
+        if (this.isWindows()) {
+          // On Windows we need to strip out double quotes from the command line in the
+          // report, and escape the backslashes in the regex comparison string.
+          t.match(nodeReportSection.replace(/"/g,''),
+                  new RegExp('Command line: ' + (options.commandline).replace(/\\/g,'\\\\')),
+                  'Checking report contains expected command line');
+        } else {
+          t.match(nodeReportSection,
+                  new RegExp('Command line: ' + options.commandline),
+                  'Checking report contains expected command line');
+        }
       }
       nodeComponents.forEach((c) => {
         if (c !== 'node') {

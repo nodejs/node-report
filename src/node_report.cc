@@ -364,7 +364,9 @@ void SetCommandLine() {
       separator = " ";
     }
   }
-#endif // _AIX
+#elif _WIN32
+  commandline_string = GetCommandLine();
+#endif
 }
 
 /*******************************************************************************
@@ -541,7 +543,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
  ******************************************************************************/
 static void PrintCommandLine(FILE* fp) {
   if (commandline_string != "") {
-    fprintf(fp, "Command line arguments: %s\n", commandline_string.c_str());
+    fprintf(fp, "Command line: %s\n", commandline_string.c_str());
   }
 }
 
