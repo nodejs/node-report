@@ -36,9 +36,9 @@ exports.validate = (t, report, options) => {
       const expectedVersions = options ?
                                options.expectedVersions || nodeComponents :
                                nodeComponents;
-      const plan = REPORT_SECTIONS.length + nodeComponents.length + 2;
+      var plan = REPORT_SECTIONS.length + nodeComponents.length + 2;
+      if( options.commandline ) plan++;
       t.plan(plan);
-
       // Check all sections are present
       REPORT_SECTIONS.forEach((section) => {
         t.match(reportContents, new RegExp('==== ' + section),
@@ -47,7 +47,7 @@ exports.validate = (t, report, options) => {
 
       // Check NodeReport section
       const nodeReportSection = getSection(reportContents, 'NodeReport');
-      t.match(nodeReportSection, new RegExp('Process ID: ' + pid),
+      t.contains(nodeReportSection, new RegExp('Process ID: ' + pid),
               'NodeReport section contains expected process ID');
       if (options && options.expectNodeVersion === false) {
         t.match(nodeReportSection, /Unable to determine Node.js version/,
@@ -56,6 +56,10 @@ exports.validate = (t, report, options) => {
         t.match(nodeReportSection,
                 new RegExp('Node.js version: ' + process.version),
                 'NodeReport section contains expected Node.js version');
+      }
+      if (options && options.commandline) {
+        t.match(nodeReportSection, new RegExp('Command line arguments: ' + options.commandline),
+                'NodeReport section contains expected command line');
       }
       nodeComponents.forEach((c) => {
         if (c !== 'node') {

@@ -19,7 +19,8 @@ if (process.argv[2] === 'child') {
     tap.equal(reports.length, 1, 'Found reports ' + reports);
     const report = reports[0];
     const validateOpts = { pid: child.pid,
-      expectedVersions: Object.keys(process.versions).filter((c) => c !== 'uv')
+      expectedVersions: Object.keys(process.versions).filter((c) => c !== 'uv'),
+      commandline: child.spawnargs.join(' ')
     };
     common.validate(tap, report, validateOpts);
   });

@@ -339,10 +339,10 @@ void SetCommandLine() {
   int argc = *_NSGetArgc();
 
   commandline_string = "";
-  std::string seperator = "";
+  std::string separator = "";
   for (int i = 0; i < argc; i++) {
-    commandline_string += seperator + argv[i];
-    seperator = " ";
+    commandline_string += separator + argv[i];
+    separator = " ";
   }
 #elif _AIX
   // Read the command line from /proc/self/cmdline
@@ -357,11 +357,11 @@ void SetCommandLine() {
   fclose(psinfo_fd);
   if (bytesread == sizeof(psinfo_t)) {
     commandline_string = "";
-    std::string seperator = "";
+    std::string separator = "";
     char **argv = *((char ***) info.pr_argv);
     for (uint32_t i = 0; i < info.pr_argc; i++) {
-      commandline_string += seperator + argv[i];
-      seperator = " ";
+      commandline_string += separator + argv[i];
+      separator = " ";
     }
   }
 #endif // _AIX
