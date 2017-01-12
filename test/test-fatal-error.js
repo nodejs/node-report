@@ -1,6 +1,6 @@
 'use strict';
 
-// Testcase to produce NodeReport on fatal error (javascript heap OOM)
+// Testcase to produce node-report on fatal error (javascript heap OOM)
 if (process.argv[2] === 'child') {
   require('../');
 

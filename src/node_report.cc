@@ -35,8 +35,8 @@
 #include <sys/utsname.h>
 #endif
 
-#if !defined(NODEREPORT_VERSION)
-#define NODEREPORT_VERSION "dev"
+#if !defined(NODE_REPORT_VERSION)
+#define NODE_REPORT_VERSION "dev"
 #endif
 
 #if !defined(UNKNOWN_NODEVERSION_STRING)
@@ -52,7 +52,7 @@
 extern char** environ;
 #endif
 
-namespace nodereport {
+namespace node-report {
 
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
@@ -79,7 +79,7 @@ static void PrintSystemInformation(FILE* fp, Isolate* isolate);
 static void WriteInteger(FILE* fp, size_t value);
 
 // Global variables
-static int seq = 0;  // sequence number for NodeReport filenames
+static int seq = 0;  // sequence number for node-report filenames
 const char* v8_states[] = {"JS", "GC", "COMPILER", "OTHER", "EXTERNAL", "IDLE"};
 static bool report_active = false; // recursion protection
 static char report_filename[NR_MAXNAME + 1] = "";
@@ -93,15 +93,15 @@ static struct tm loadtime_tm_struct; // module load time
 #endif
 
 /*******************************************************************************
- * Functions to process nodereport configuration options:
+ * Functions to process node-report configuration options:
  *   Trigger event selection
  *   Core dump yes/no switch
  *   Trigger signal selection
- *   NodeReport filename
- *   NodeReport directory
+ *   node-report filename
+ *   node-report directory
  *   Verbose mode
  ******************************************************************************/
-unsigned int ProcessNodeReportEvents(const char* args) {
+unsigned int ProcessProcessNode_ReportEvents(const char* args) {
   // Parse the supplied event types
   unsigned int event_flags = 0;
   const char* cursor = args;
@@ -119,7 +119,7 @@ unsigned int ProcessNodeReportEvents(const char* args) {
       event_flags |= NR_APICALL;
       cursor += sizeof("apicall") - 1;
     } else {
-      fprintf(stderr, "Unrecognised argument for nodereport events option: %s\n", cursor);
+      fprintf(stderr, "Unrecognised argument for node-report events option: %s\n", cursor);
       return 0;
     }
     if (*cursor == '+') {
@@ -129,9 +129,9 @@ unsigned int ProcessNodeReportEvents(const char* args) {
   return event_flags;
 }
 
-unsigned int ProcessNodeReportCoreSwitch(const char* args) {
+unsigned int ProcessNode_ReportCoreSwitch(const char* args) {
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for nodereport core switch option\n");
+    fprintf(stderr, "Missing argument for node-report core switch option\n");
   } else {
     // Parse the supplied switch
     if (!strncmp(args, "yes", sizeof("yes") - 1) || !strncmp(args, "true", sizeof("true") - 1)) {
@@ -139,18 +139,18 @@ unsigned int ProcessNodeReportCoreSwitch(const char* args) {
     } else if (!strncmp(args, "no", sizeof("no") - 1) || !strncmp(args, "false", sizeof("false") - 1)) {
       return 0;
     } else {
-      fprintf(stderr, "Unrecognised argument for nodereport core switch option: %s\n", args);
+      fprintf(stderr, "Unrecognised argument for node-report core switch option: %s\n", args);
     }
   }
   return 1;  // Default is to produce core dumps
 }
 
-unsigned int ProcessNodeReportSignal(const char* args) {
+unsigned int ProcessNode_ReportSignal(const char* args) {
 #ifdef _WIN32
   return 0; // no-op on Windows
 #else
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for nodereport signal option\n");
+    fprintf(stderr, "Missing argument for node-report signal option\n");
   } else {
     // Parse the supplied switch
     if (!strncmp(args, "SIGUSR2", sizeof("SIGUSR2") - 1)) {
@@ -158,40 +158,40 @@ unsigned int ProcessNodeReportSignal(const char* args) {
     } else if (!strncmp(args, "SIGQUIT", sizeof("SIGQUIT") - 1)) {
       return SIGQUIT;
     } else {
-      fprintf(stderr, "Unrecognised argument for nodereport signal option: %s\n", args);
+      fprintf(stderr, "Unrecognised argument for node-report signal option: %s\n", args);
     }
   }
   return SIGUSR2;  // Default signal is SIGUSR2
 #endif
 }
 
-void ProcessNodeReportFileName(const char* args) {
+void ProcessNode_ReportFileName(const char* args) {
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for nodereport filename option\n");
+    fprintf(stderr, "Missing argument for node-report filename option\n");
     return;
   }
   if (strlen(args) > NR_MAXNAME) {
-    fprintf(stderr, "Supplied nodereport filename too long (max %d characters)\n", NR_MAXNAME);
+    fprintf(stderr, "Supplied node-report filename too long (max %d characters)\n", NR_MAXNAME);
     return;
   }
   snprintf(report_filename, sizeof(report_filename), "%s", args);
 }
 
-void ProcessNodeReportDirectory(const char* args) {
+void ProcessNode_ReportDirectory(const char* args) {
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for nodereport directory option\n");
+    fprintf(stderr, "Missing argument for  directory option\n");
     return;
   }
   if (strlen(args) > NR_MAXPATH) {
-    fprintf(stderr, "Supplied nodereport directory path too long (max %d characters)\n", NR_MAXPATH);
+    fprintf(stderr, "Supplied node-report directory path too long (max %d characters)\n", NR_MAXPATH);
     return;
   }
   snprintf(report_directory, sizeof(report_directory), "%s", args);
 }
 
-unsigned int ProcessNodeReportVerboseSwitch(const char* args) {
+unsigned int ProcessNode_ReportVerboseSwitch(const char* args) {
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for nodereport verbose switch option\n");
+    fprintf(stderr, "Missing argument for node-report verbose switch option\n");
     return 0;
   }
   // Parse the supplied switch
@@ -200,7 +200,7 @@ unsigned int ProcessNodeReportVerboseSwitch(const char* args) {
   } else if (!strncmp(args, "no", sizeof("no") - 1) || !strncmp(args, "false", sizeof("false") - 1)) {
     return 0;
   } else {
-    fprintf(stderr, "Unrecognised argument for nodereport verbose switch option: %s\n", args);
+    fprintf(stderr, "Unrecognised argument for node-report verbose switch option: %s\n", args);
   }
   return 0;  // Default is verbose mode off
 }
@@ -297,7 +297,7 @@ void SetVersionString(Isolate* isolate) {
 }
 
 /*******************************************************************************
- * Function to save the nodereport module load time value
+ * Function to save the node-report module load time value
  *******************************************************************************/
 void SetLoadTime() {
 #ifdef _WIN32
@@ -370,17 +370,17 @@ void SetCommandLine() {
 }
 
 /*******************************************************************************
- * Main API function to write a NodeReport to file.
+ * Main API function to write a node-report to file.
  *
  * Parameters:
  *   Isolate* isolate
  *   DumpEvent event
  *   const char* message
  *   const char* location
- *   char* name - in/out - returns the NodeReport filename
+ *   char* name - in/out - returns the node-report filename
  ******************************************************************************/
-void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name) {
-  // Recursion check for NodeReport in progress, bail out
+void TriggerNode_Report(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name) {
+  // Recursion check for node-report in progress, bail out
   if (report_active) return;
   report_active = true;
 
@@ -397,7 +397,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
   pid_t pid = getpid();
 #endif
 
-  // Determine the required NodeReport filename. In order of priority:
+  // Determine the required node-report filename. In order of priority:
   //   1) supplied on API 2) configured on startup 3) default generated
   char filename[NR_MAXNAME + 1] = "";
   if (name != nullptr && strlen(name) > 0) {
@@ -407,8 +407,8 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
     // File name was supplied via start-up option, use that
     snprintf(filename, sizeof(filename), "%s", report_filename);
   } else {
-    // Construct the NodeReport filename, with timestamp, pid and sequence number
-    snprintf(filename, sizeof(filename), "%s", "NodeReport");
+    // Construct the node-report filename, with timestamp, pid and sequence number
+    snprintf(filename, sizeof(filename), "%s", "node-report");
     seq++;
 #ifdef _WIN32
     snprintf(&filename[strlen(filename)], sizeof(filename) - strlen(filename),
@@ -425,7 +425,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
 #endif
   }
 
-  // Open the NodeReport file stream for writing. Supports stdout/err, user-specified or (default) generated name
+  // Open the node-report file stream for writing. Supports stdout/err, user-specified or (default) generated name
   FILE* fp = nullptr;
   if (!strncmp(filename, "stdout", sizeof("stdout") - 1)) {
     fp = stdout;
@@ -457,10 +457,10 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
     }
   }
 
-  // File stream opened OK, now start printing the NodeReport content, starting with the title
+  // File stream opened OK, now start printing the node-report content, starting with the title
   // and header information (event, filename, timestamp and pid)
   fprintf(fp, "================================================================================\n");
-  fprintf(fp, "==== NodeReport ================================================================\n");
+  fprintf(fp, "==== node-report ================================================================\n");
   fprintf(fp, "\nEvent: %s, location: \"%s\"\n", message, location);
   fprintf(fp, "Filename: %s\n", filename);
 
@@ -532,7 +532,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
 
   fprintf(stderr, "Node.js report completed\n");
   if (name != nullptr) {
-    snprintf(name, NR_MAXNAME + 1, "%s", filename);  // return the NodeReport file name
+    snprintf(name, NR_MAXNAME + 1, "%s", filename);  // return the node-report file name
   }
   report_active = false;
 }
@@ -556,10 +556,10 @@ static void PrintVersionInformation(FILE* fp, Isolate* isolate) {
   // Print Node.js and deps component versions
   fprintf(fp, "\n%s", version_string.c_str());
 
-  // Print NodeReport version
-  // e.g. NodeReport version: 1.0.6 (built against Node.js v6.9.1)
-  fprintf(fp, "\nNodeReport version: %s (built against Node.js v%s)\n",
-          NODEREPORT_VERSION, NODE_VERSION_STRING);
+  // Print node-report version
+  // e.g. node-report version: 1.0.6 (built against Node.js v6.9.1)
+  fprintf(fp, "\nnode-report version: %s (built against Node.js v%s)\n",
+          NODE_REPORT_VERSION, NODE_VERSION_STRING);
 
   // Print operating system and machine information (Windows)
 #ifdef _WIN32
@@ -830,7 +830,7 @@ void PrintNativeStack(FILE* fp) {
     return;
   }
 
-  // Print the native frames, omitting the top 3 frames as they are in nodereport code
+  // Print the native frames, omitting the top 3 frames as they are in node-report code
   // backtrace_symbols_fd(frames, size, fileno(fp));
   for (int i = 2; i < size; i++) {
     // print frame index and instruction address
@@ -1050,4 +1050,4 @@ static void WriteInteger(FILE* fp, size_t value) {
   }
 }
 
-}  // namespace nodereport
+}  // namespace node-report

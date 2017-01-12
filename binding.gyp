@@ -21,7 +21,7 @@
         }],
       ],
       "defines": [
-        'NODEREPORT_VERSION="<!(node -p \"require(\'./package.json\').version\")"'
+        'NODE_REPORT_VERSION="<!(node -p \"require(\'./package.json\').version\")"'
       ],
     },
     {

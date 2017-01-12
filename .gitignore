@@ -38,7 +38,7 @@
 /node_modules/
 
 # Package files
-NodeReport*.txt
+node-report*.txt
 npm-debug.log
-nodereport-*.tgz
-nodereport_test.log
+node-report-*.tgz
+node-report_test.log
