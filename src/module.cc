@@ -6,7 +6,9 @@ namespace nodereport {
 // Internal/static function declarations
 static void OnFatalError(const char* location, const char* message);
 bool OnUncaughtException(v8::Isolate* isolate);
-#ifndef _WIN32
+#ifdef _WIN32
+static void PrintStackFromStackTrace(Isolate* isolate, FILE* fp);
+#else  // signal trigger functions for Unix platforms and OSX
 static void SignalDumpAsyncCallback(uv_async_t* handle);
 inline void* ReportSignalThreadMain(void* unused);
 static int StartWatchdogThread(void* (*thread_main)(void* unused));
@@ -19,7 +21,6 @@ static void SetupSignalHandler();
 
 // Default nodereport option settings
 static unsigned int nodereport_events = NR_APICALL;
-static unsigned int nodereport_core = 1;
 static unsigned int nodereport_verbose = 0;
 #ifdef _WIN32  // signal trigger not supported on Windows
 static unsigned int nodereport_signal = 0;
@@ -28,7 +29,7 @@ static unsigned int nodereport_signal = SIGUSR2; // default signal is SIGUSR2
 static int report_signal = 0;  // atomic for signal handling in progress
 static uv_sem_t report_semaphore;  // semaphore for hand-off to watchdog
 static uv_async_t nodereport_trigger_async;  // async handle for event loop
-static uv_mutex_t node_isolate_mutex;  // mutex for wachdog thread
+static uv_mutex_t node_isolate_mutex;  // mutex for watchdog thread
 static struct sigaction saved_sa;  // saved signal action
 #endif
 
@@ -38,6 +39,8 @@ static bool error_hook_initialised = false;
 static bool signal_thread_initialised = false;
 
 static v8::Isolate* node_isolate;
+extern std::string version_string;
+extern std::string commandline_string;
 
 /*******************************************************************************
  * External JavaScript API for triggering a NodeReport
@@ -100,10 +103,6 @@ NAN_METHOD(SetEvents) {
   }
 #endif
 }
-NAN_METHOD(SetCoreDump) {
-  Nan::Utf8String parameter(info[0]);
-  nodereport_core = ProcessNodeReportCoreSwitch(*parameter);
-}
 NAN_METHOD(SetSignal) {
 #ifndef _WIN32
   Nan::Utf8String parameter(info[0]);
@@ -145,22 +144,65 @@ static void OnFatalError(const char* location, const char* message) {
     TriggerNodeReport(Isolate::GetCurrent(), kFatalError, message, location, nullptr);
   }
   fflush(stderr);
-  if (nodereport_core) {
-    raise(SIGABRT); // core dump requested (default)
-  } else {
-    exit(1); // user specified that no core dump is wanted, just exit
-  }
+  raise(SIGABRT);
 }
 
 bool OnUncaughtException(v8::Isolate* isolate) {
-   // Trigger NodeReport if required
+  // Trigger NodeReport if requested
   if (nodereport_events & NR_EXCEPTION) {
     TriggerNodeReport(isolate, kException, "exception", __func__, nullptr);
-  } 
-  return nodereport_core;
+  }
+  if ((commandline_string.find("abort-on-uncaught-exception") != std::string::npos) ||
+      (commandline_string.find("abort_on_uncaught_exception") != std::string::npos)) {
+    return true;  // abort required
+  }
+  // On V8 versions earlier than 5.4 we need to print the exception backtrace
+  // to stderr, as V8 does not do so (unless we trigger an abort, as above).
+  int v8_major, v8_minor;
+  if (sscanf(v8::V8::GetVersion(), "%d.%d", &v8_major, &v8_minor) == 2) {
+    if (v8_major < 5 || (v8_major == 5 && v8_minor < 4)) {
+      fprintf(stderr, "\nUncaught exception at:\n");
+#ifdef _WIN32
+      // On Windows, print the stack using StackTrace API
+      PrintStackFromStackTrace(isolate, stderr);
+#else
+      // On other platforms use the Message API
+      Message::PrintCurrentStackTrace(isolate, stderr);
+#endif
+    }
+  }
+  return false;
 }
 
-#ifndef _WIN32
+#ifdef _WIN32
+static void PrintStackFromStackTrace(Isolate* isolate, FILE* fp) {
+  Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, 255,
+                                                          StackTrace::kDetailed);
+  // Print the JavaScript function name and source information for each frame
+  for (int i = 0; i < stack->GetFrameCount(); i++) {
+    Local<StackFrame> frame = stack->GetFrame(i);
+    Nan::Utf8String fn_name_s(frame->GetFunctionName());
+    Nan::Utf8String script_name(frame->GetScriptName());
+    const int line_number = frame->GetLineNumber();
+    const int column = frame->GetColumn();
+
+    if (frame->IsEval()) {
+      if (frame->GetScriptId() == Message::kNoScriptIdInfo) {
+        fprintf(fp, "at [eval]:%i:%i\n", line_number, column);
+      } else {
+        fprintf(fp, "at [eval] (%s:%i:%i)\n", *script_name, line_number, column);
+      }
+    } else {
+      if (fn_name_s.length() == 0) {
+        fprintf(fp, "%s:%i:%i\n", *script_name, line_number, column);
+      } else {
+        fprintf(fp, "%s (%s:%i:%i)\n", *fn_name_s, *script_name, line_number, column);
+      }
+    }
+  }
+}
+#else
+// Signal handling functions, not supported on Windows
 static void SignalDumpInterruptCallback(Isolate* isolate, void* data) {
   if (report_signal != 0) {
     if (nodereport_verbose) {
@@ -313,10 +355,6 @@ void Initialize(v8::Local<v8::Object> exports) {
   if (trigger_events != nullptr) {
     nodereport_events = ProcessNodeReportEvents(trigger_events);
   }
-  const char* core_dump_switch = secure_getenv("NODEREPORT_COREDUMP");
-  if (core_dump_switch != nullptr) {
-    nodereport_core = ProcessNodeReportCoreSwitch(core_dump_switch);
-  }
   const char* trigger_signal = secure_getenv("NODEREPORT_SIGNAL");
   if (trigger_signal != nullptr) {
     nodereport_signal = ProcessNodeReportSignal(trigger_signal);
@@ -356,8 +394,6 @@ void Initialize(v8::Local<v8::Object> exports) {
                Nan::New<v8::FunctionTemplate>(TriggerReport)->GetFunction());
   exports->Set(Nan::New("setEvents").ToLocalChecked(),
                Nan::New<v8::FunctionTemplate>(SetEvents)->GetFunction());
-  exports->Set(Nan::New("setCoreDump").ToLocalChecked(),
-               Nan::New<v8::FunctionTemplate>(SetCoreDump)->GetFunction());
   exports->Set(Nan::New("setSignal").ToLocalChecked(),
                Nan::New<v8::FunctionTemplate>(SetSignal)->GetFunction());
   exports->Set(Nan::New("setFileName").ToLocalChecked(),
@@ -369,11 +405,11 @@ void Initialize(v8::Local<v8::Object> exports) {
 
   if (nodereport_verbose) {
 #ifdef _WIN32
-    fprintf(stdout, "nodereport: initialization complete, event flags: %#x core flag: %#x\n",
-            nodereport_events, nodereport_core);
+    fprintf(stdout, "nodereport: initialization complete, event flags: %#x\n",
+            nodereport_events);
 #else
-    fprintf(stdout, "nodereport: initialization complete, event flags: %#x core flag: %#x signal flag: %#x\n",
-            nodereport_events, nodereport_core, nodereport_signal);
+    fprintf(stdout, "nodereport: initialization complete, event flags: %#x signal flag: %#x\n",
+            nodereport_events, nodereport_signal);
 #endif
   }
 }

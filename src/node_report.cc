@@ -59,8 +59,6 @@ using v8::HeapStatistics;
 using v8::Isolate;
 using v8::Local;
 using v8::Message;
-using v8::StackFrame;
-using v8::StackTrace;
 using v8::String;
 using v8::V8;
 
@@ -84,8 +82,8 @@ const char* v8_states[] = {"JS", "GC", "COMPILER", "OTHER", "EXTERNAL", "IDLE"};
 static bool report_active = false; // recursion protection
 static char report_filename[NR_MAXNAME + 1] = "";
 static char report_directory[NR_MAXPATH + 1] = ""; // defaults to current working directory
-static std::string version_string = UNKNOWN_NODEVERSION_STRING;
-static std::string commandline_string = "";
+std::string version_string = UNKNOWN_NODEVERSION_STRING;
+std::string commandline_string = "";
 #ifdef _WIN32
 static SYSTEMTIME loadtime_tm_struct; // module load time
 #else  // UNIX, OSX
@@ -127,22 +125,6 @@ unsigned int ProcessNodeReportEvents(const char* args) {
     }
   }
   return event_flags;
-}
-
-unsigned int ProcessNodeReportCoreSwitch(const char* args) {
-  if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for nodereport core switch option\n");
-  } else {
-    // Parse the supplied switch
-    if (!strncmp(args, "yes", sizeof("yes") - 1) || !strncmp(args, "true", sizeof("true") - 1)) {
-      return 1;
-    } else if (!strncmp(args, "no", sizeof("no") - 1) || !strncmp(args, "false", sizeof("false") - 1)) {
-      return 0;
-    } else {
-      fprintf(stderr, "Unrecognised argument for nodereport core switch option: %s\n", args);
-    }
-  }
-  return 1;  // Default is to produce core dumps
 }
 
 unsigned int ProcessNodeReportSignal(const char* args) {
