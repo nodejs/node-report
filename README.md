@@ -70,7 +70,6 @@ nodereport.setEvents("exception+fatalerror+signal+apicall");
 nodereport.setSignal("SIGUSR2|SIGQUIT");
 nodereport.setFileName("stdout|stderr|<filename>");
 nodereport.setDirectory("<full path>");
-nodereport.setCoreDump("yes|no");
 nodereport.setVerbose("yes|no");
 ```
 
@@ -81,7 +80,6 @@ export NODEREPORT_EVENTS=exception+fatalerror+signal+apicall
 export NODEREPORT_SIGNAL=SIGUSR2|SIGQUIT
 export NODEREPORT_FILENAME=stdout|stderr|<filename>
 export NODEREPORT_DIRECTORY=<full path>
-export NODEREPORT_COREDUMP=yes|no
 export NODEREPORT_VERBOSE=yes|no
 ```
 
