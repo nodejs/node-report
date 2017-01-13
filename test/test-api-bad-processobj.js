@@ -1,11 +1,11 @@
 'use strict';
 
-// Testcase to check NodeReport succeeds if process.versions is damaged
+// Testcase to check node-report succeeds if process.versions is damaged
 if (process.argv[2] === 'child') {
   // Tamper with the process object
   Object.defineProperty(process, 'versions', {get() { throw 'boom'; }});
-  const nodereport = require('../');
-  nodereport.triggerReport();
+  const node-report = require('../');
+  node-report.triggerReport();
 } else {
   const common = require('./common.js');
   const spawn = require('child_process').spawn;

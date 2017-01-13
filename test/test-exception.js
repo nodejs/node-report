@@ -1,6 +1,6 @@
 'use strict';
 
-// Testcase to produce NodeReport on uncaught exception
+// Testcase to produce node-report on uncaught exception
 if (process.argv[2] === 'child') {
   require('../');
 

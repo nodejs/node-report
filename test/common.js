@@ -3,7 +3,7 @@
 const fs = require('fs');
 
 const REPORT_SECTIONS = [
-  'NodeReport',
+  'node-report',
   'JavaScript Stack Trace',
   'JavaScript Heap',
   'System Information'
@@ -12,8 +12,8 @@ const REPORT_SECTIONS = [
 const reNewline = '(?:\\r*\\n)';
 
 exports.findReports = (pid) => {
-  // Default filenames are of the form NodeReport.<date>.<time>.<pid>.<seq>.txt
-  const format = '^NodeReport\\.\\d+\\.\\d+\\.' + pid + '\\.\\d+\\.txt$';
+  // Default filenames are of the form node-report.<date>.<time>.<pid>.<seq>.txt
+  const format = '^node-report\\.\\d+\\.\\d+\\.' + pid + '\\.\\d+\\.txt$';
   const filePattern = new RegExp(format);
   const files = fs.readdirSync('.');
   return files.filter((file) => filePattern.test(file));
@@ -45,28 +45,28 @@ exports.validate = (t, report, options) => {
                 'Checking report contains ' + section + ' section');
       });
 
-      // Check NodeReport header section
-      const nodeReportSection = getSection(reportContents, 'NodeReport');
-      t.match(nodeReportSection, new RegExp('Process ID: ' + pid),
-              'NodeReport section contains expected process ID');
+      // Check node-report header section
+      const node-reportSection = getSection(reportContents, 'node-report');
+      t.match(node-reportSection, new RegExp('Process ID: ' + pid),
+              'node-report section contains expected process ID');
       if (options && options.expectNodeVersion === false) {
-        t.match(nodeReportSection, /Unable to determine Node.js version/,
-                'NodeReport section contains expected Node.js version');
+        t.match(node-reportSection, /Unable to determine Node.js version/,
+                'node-report section contains expected Node.js version');
       } else {
-        t.match(nodeReportSection,
+        t.match(node-reportSection,
                 new RegExp('Node.js version: ' + process.version),
-                'NodeReport section contains expected Node.js version');
+                'node-report section contains expected Node.js version');
       }
       if (options && options.commandline) {
         if (this.isWindows()) {
           // On Windows we need to strip double quotes from the command line in
           // the report, and escape backslashes in the regex comparison string.
-          t.match(nodeReportSection.replace(/"/g,''),
+          t.match(node-reportSection.replace(/"/g,''),
                   new RegExp('Command line: '
                              + (options.commandline).replace(/\\/g,'\\\\')),
                   'Checking report contains expected command line');
         } else {
-          t.match(nodeReportSection,
+          t.match(node-reportSection,
                   new RegExp('Command line: ' + options.commandline),
                   'Checking report contains expected command line');
         }
@@ -74,20 +74,20 @@ exports.validate = (t, report, options) => {
       nodeComponents.forEach((c) => {
         if (c !== 'node') {
           if (expectedVersions.indexOf(c) === -1) {
-            t.notMatch(nodeReportSection,
+            t.notMatch(node-reportSection,
                        new RegExp(c + ': ' + process.versions[c]),
-                       'NodeReport section does not contain ' + c + ' version');
+                       'node-report section does not contain ' + c + ' version');
           } else {
-            t.match(nodeReportSection,
+            t.match(node-reportSection,
                     new RegExp(c + ': ' + process.versions[c]),
-                    'NodeReport section contains expected ' + c + ' version');
+                    'node-report section contains expected ' + c + ' version');
           }
         }
       });
-      const nodereportMetadata = require('../package.json');
-      t.match(nodeReportSection,
-              new RegExp('NodeReport version: ' + nodereportMetadata.version),
-              'NodeReport section contains expected NodeReport version');
+      const node-reportMetadata = require('../package.json');
+      t.match(node-reportSection,
+              new RegExp('node-report version: ' + node-reportMetadata.version),
+              'node-report section contains expected node-report version');
     });
   });
 };

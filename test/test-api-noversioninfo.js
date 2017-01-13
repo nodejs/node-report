@@ -1,14 +1,14 @@
 'use strict';
 
-// Testcase to check NodeReport succeeds if both process.version and
+// Testcase to check node-report succeeds if both process.version and
 // process.versions are damaged
 if (process.argv[2] === 'child') {
   // Tamper with the process object
   delete process['version'];
   delete process['versions'];
 
-  const nodereport = require('../');
-  nodereport.triggerReport();
+  const node-report = require('../');
+  node-report.triggerReport();
 } else {
   const common = require('./common.js');
   const spawn = require('child_process').spawn;

@@ -1,6 +1,6 @@
 'use strict';
 
-// Testcase to produce NodeReport on signal interrupting a js busy-loop,
+// Testcase to produce node-report on signal interrupting a js busy-loop,
 // showing it is interruptible.
 if (process.argv[2] === 'child') {
   require('../');

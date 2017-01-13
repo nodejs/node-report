@@ -1,5 +1,5 @@
-// Example - generation of NodeReport via API call
-var nodereport = require('nodereport');
+// Example - generation of node-report via API call
+var node-report = require('node-report');
 var http = require("http");
 
 var count = 0;
@@ -8,13 +8,13 @@ function my_listener(request, response) {
   switch(count++) {
   case 0:
     response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning NodeReport API demo... refresh page to trigger NodeReport");
+    response.write("\nRunning node-report API demo... refresh page to trigger node-report");
     response.end();
     break;
   case 1:
     response.writeHead(200,{"Content-Type": "text/plain"});
-    // Call the nodereport module to trigger a NodeReport
-    var filename = nodereport.triggerReport();
+    // Call the node-report module to trigger a node-report
+    var filename = node-report.triggerReport();
     response.write("\n" + filename + " written - refresh page to close");
     response.end();
     break;

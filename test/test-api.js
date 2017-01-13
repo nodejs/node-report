@@ -1,9 +1,9 @@
 'use strict';
 
-// Testcase to produce NodeReport via API call
+// Testcase to produce node-report via API call
 if (process.argv[2] === 'child') {
-  const nodereport = require('../');
-  nodereport.triggerReport();
+  const node-report = require('../');
+  node-report.triggerReport();
 } else {
   const common = require('./common.js');
   const spawn = require('child_process').spawn;

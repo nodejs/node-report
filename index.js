@@ -1,9 +1,9 @@
-// Main module entry point for nodereport
+// Main module entry point for node-report
 
 const api = require('./api');
 
-// NODEREPORT_EVENTS env var overrides the defaults
-const options = process.env.NODEREPORT_EVENTS || 'exception+fatalerror+signal+apicall';
+// NODE_REPORT_EVENTS env var overrides the defaults
+const options = process.env.NODE_REPORT_EVENTS || 'exception+fatalerror+signal+apicall';
 api.setEvents(options);
 
 exports.triggerReport = api.triggerReport;
