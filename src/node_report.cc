@@ -27,9 +27,13 @@
 #include <inttypes.h>
 #include <cxxabi.h>
 #include <dlfcn.h>
+#ifdef __linux__
+#include <link.h>
+#endif
 #ifndef _AIX
 #include <execinfo.h>
 #else
+#include <sys/ldr.h>
 #include <sys/procfs.h>
 #endif
 #include <sys/utsname.h>
@@ -46,6 +50,7 @@
 #ifdef __APPLE__
 // Include _NSGetArgv and _NSGetArgc for command line arguments.
 #include <crt_externs.h>
+#include <mach-o/dyld.h>
 #endif
 
 #ifndef _WIN32
@@ -76,6 +81,7 @@ static void PrintResourceUsage(FILE* fp);
 #endif
 static void PrintGCStatistics(FILE* fp, Isolate* isolate);
 static void PrintSystemInformation(FILE* fp, Isolate* isolate);
+static void PrintLoadedLibraries(FILE* fp, Isolate* isolate);
 static void WriteInteger(FILE* fp, size_t value);
 
 // Global variables
@@ -1020,6 +1026,65 @@ const static struct {
       }
     }
   }
+#endif
+
+  fprintf(fp, "\nLoaded Libraries\n");
+  PrintLoadedLibraries(fp, isolate);
+}
+
+/*******************************************************************************
+ * Function to print operating system information.
+ *
+ ******************************************************************************/
+#ifdef __linux__
+int
+LibraryPrintCallback(struct dl_phdr_info *info, size_t size, void *data) {
+  FILE* fp = (FILE*)data;
+  if (info->dlpi_name != nullptr && *info->dlpi_name != '\0') {
+    fprintf(fp, "  %s\n", info->dlpi_name);
+  }
+  return 0;
+}
+#endif
+
+static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
+#ifdef __linux__
+  dl_iterate_phdr(LibraryPrintCallback, fp);
+#elif __APPLE__
+  int i = 0;
+  const char *name = _dyld_get_image_name(i);
+  while (name != nullptr) {
+    fprintf(fp, "  %s\n", name);
+    i++;
+    name = _dyld_get_image_name(i);
+  }
+#elif _AIX
+  const unsigned int buffer_inc = 4096;
+  unsigned int buffer_size = buffer_inc;
+  char* buffer = (char*) malloc(buffer_size);
+  int rc = loadquery(L_GETINFO, buffer, buffer_size);
+  while (rc != 0 && buffer_size < 1024 * 1024 && buffer != nullptr) {
+    free(buffer);
+    buffer_size += buffer_inc;
+    buffer = (char*) malloc(buffer_size);
+    rc = loadquery(L_GETINFO, buffer, buffer_size);
+  }
+  if (rc == 0 && buffer != nullptr) {
+    char* buf = buffer;
+    ld_info* cur_info = (ld_info*) buf;
+    do {
+      char* member_name = cur_info->ldinfo_filename
+        + strlen(cur_info->ldinfo_filename) + 1;
+      if (*member_name != '\0') {
+        fprintf(fp, "  %s(%s)\n", cur_info->ldinfo_filename, member_name);
+      } else {
+        fprintf(fp, "  %s\n", cur_info->ldinfo_filename);
+      }
+      buf += cur_info->ldinfo_next;
+      cur_info = (ld_info*) buf;
+    } while (cur_info->ldinfo_next != 0);
+  }
+  free(buffer);
 #endif
 }
 
