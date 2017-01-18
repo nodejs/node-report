@@ -36,7 +36,7 @@ exports.validate = (t, report, options) => {
       const expectedVersions = options ?
                                options.expectedVersions || nodeComponents :
                                nodeComponents;
-      var plan = REPORT_SECTIONS.length + nodeComponents.length + 2;
+      var plan = REPORT_SECTIONS.length + nodeComponents.length + 3;
       if (options.commandline) plan++;
       t.plan(plan);
       // Check all sections are present
@@ -88,6 +88,12 @@ exports.validate = (t, report, options) => {
       t.match(nodeReportSection,
               new RegExp('NodeReport version: ' + nodereportMetadata.version),
               'NodeReport section contains expected NodeReport version');
+      const sysInfoSection = getSection(reportContents, 'System Information');
+      // Find a line which ends with "/api.node" or "\api.node"
+      // (Unix or Windows paths) to see if the library for node report was
+      // loaded.
+      t.match(sysInfoSection, /  .*(\/|\\)api\.node/,
+        'System Information section contains nodereport library.');
     });
   });
 };
