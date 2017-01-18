@@ -156,18 +156,20 @@ bool OnUncaughtException(v8::Isolate* isolate) {
       (commandline_string.find("abort_on_uncaught_exception") != std::string::npos)) {
     return true;  // abort required
   }
-  // On Node v4 and v6 we need to print the exception backtrace to stderr, as
-  // Node does not do so (unless we trigger an abort, as above)
-  if ((version_string.find("v4") != std::string::npos) ||
-      (version_string.find("v6") != std::string::npos)) {
-    fprintf(stderr, "\nUncaught exception at:\n");
+  // On V8 versions earlier than 5.4 we need to print the exception backtrace
+  // to stderr, as V8 does not do so (unless we trigger an abort, as above).
+  int v8_major, v8_minor;
+  if (sscanf(v8::V8::GetVersion(), "%d.%d", &v8_major, &v8_minor) == 2) {
+    if (v8_major <= 5 && v8_minor < 4) {
+      fprintf(stderr, "\nUncaught exception at:\n");
 #ifdef _WIN32
-    // On Windows, print the stack using StackTrace API
-    PrintStackFromStackTrace(isolate, stderr);
+      // On Windows, print the stack using StackTrace API
+      PrintStackFromStackTrace(isolate, stderr);
 #else
-    // On other platforms use the Message API
-    Message::PrintCurrentStackTrace(isolate, stderr);
+      // On other platforms use the Message API
+      Message::PrintCurrentStackTrace(isolate, stderr);
 #endif
+    }
   }
   return false;
 }
