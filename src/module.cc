@@ -160,7 +160,7 @@ bool OnUncaughtException(v8::Isolate* isolate) {
   // to stderr, as V8 does not do so (unless we trigger an abort, as above).
   int v8_major, v8_minor;
   if (sscanf(v8::V8::GetVersion(), "%d.%d", &v8_major, &v8_minor) == 2) {
-    if (v8_major <= 5 && v8_minor < 4) {
+    if (v8_major < 5 || (v8_major == 5 && v8_minor < 4)) {
       fprintf(stderr, "\nUncaught exception at:\n");
 #ifdef _WIN32
       // On Windows, print the stack using StackTrace API
