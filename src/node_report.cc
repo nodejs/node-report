@@ -17,6 +17,8 @@
 #include <process.h>
 #include <dbghelp.h>
 #include <Lm.h>
+#include <tchar.h>
+#include <psapi.h>
 #else
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -1028,17 +1030,16 @@ const static struct {
   }
 #endif
 
-  fprintf(fp, "\nLoaded Libraries\n");
+  fprintf(fp, "\nLoaded libraries\n");
   PrintLoadedLibraries(fp, isolate);
 }
 
 /*******************************************************************************
- * Function to print operating system information.
+ * Functions to print a list of loaded native libraries.
  *
  ******************************************************************************/
 #ifdef __linux__
-int
-LibraryPrintCallback(struct dl_phdr_info *info, size_t size, void *data) {
+static int LibraryPrintCallback(struct dl_phdr_info *info, size_t size, void *data) {
   FILE* fp = (FILE*)data;
   if (info->dlpi_name != nullptr && *info->dlpi_name != '\0') {
     fprintf(fp, "  %s\n", info->dlpi_name);
@@ -1093,6 +1094,37 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
     } while (cur_info->ldinfo_next != 0);
   }
   free(buffer);
+
+#elif _WIN32
+  // Windows implementation - get a handle to the process.
+  HANDLE process_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+                                      FALSE, GetCurrentProcessId());
+  if (process_handle == NULL) {
+    fprintf(fp, "No library information available\n");
+    return;
+  }
+  // Get a list of all the modules in this process
+  DWORD size_1, size_2;
+  // First call to get the size of module array needed
+  if (EnumProcessModules(process_handle, NULL, 0, &size_1)) {
+    HMODULE* modules = (HMODULE*) malloc(size_1);
+    // Second call to populate the module array
+    if (EnumProcessModules(process_handle, modules, size_1, &size_2)) {
+      for (int i=0; i < size_1/sizeof(HMODULE) && i < size_2/sizeof(HMODULE); i++) {
+        TCHAR module_name[MAX_PATH];
+        // Obtain and print the full pathname for each module
+        if (GetModuleFileNameEx(process_handle, modules[i], module_name,
+                                sizeof(module_name)/sizeof(TCHAR))) {
+          fprintf(fp,"  %s\n", module_name);
+        }
+      }
+    }
+    free(modules);
+  } else {
+    fprintf(fp, "No library information available\n");
+  }
+  // Release the handle to the process.
+  CloseHandle(process_handle);
 #endif
 }
 
