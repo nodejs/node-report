@@ -1108,6 +1108,9 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
   // First call to get the size of module array needed
   if (EnumProcessModules(process_handle, NULL, 0, &size_1)) {
     HMODULE* modules = (HMODULE*) malloc(size_1);
+    if (modules == NULL) {
+      return;  // bail out if malloc failed
+    }
     // Second call to populate the module array
     if (EnumProcessModules(process_handle, modules, size_1, &size_2)) {
       for (int i=0; i < size_1/sizeof(HMODULE) && i < size_2/sizeof(HMODULE); i++) {
