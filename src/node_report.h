@@ -23,7 +23,7 @@ using v8::Value;
 using v8::StackTrace;
 using v8::StackFrame;
 
-// Bit-flags for NodeReport trigger options
+// Bit-flags for node-report trigger options
 #define NR_EXCEPTION  0x01
 #define NR_FATALERROR 0x02
 #define NR_SIGNAL     0x04
