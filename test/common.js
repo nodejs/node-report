@@ -19,6 +19,10 @@ exports.findReports = (pid) => {
   return files.filter((file) => filePattern.test(file));
 };
 
+exports.isAIX = () => {
+  return process.platform === 'aix';
+};
+
 exports.isPPC = () => {
   return process.arch.startsWith('ppc');
 };
