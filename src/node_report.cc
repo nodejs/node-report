@@ -1059,20 +1059,29 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
     name = _dyld_get_image_name(i);
   }
 #elif _AIX
+  // We can't tell in advance how large the buffer needs to be.
+  // Retry until we reach too large a size (1Mb).
   const unsigned int buffer_inc = 4096;
   unsigned int buffer_size = buffer_inc;
   char* buffer = (char*) malloc(buffer_size);
-  int rc = loadquery(L_GETINFO, buffer, buffer_size);
-  while (rc != 0 && buffer_size < 1024 * 1024 && buffer != nullptr) {
+  int rc = -1;
+  while (buffer != nullptr && rc != 0 && buffer_size < 1024 * 1024) {
+    rc = loadquery(L_GETINFO, buffer, buffer_size);
+    if (rc == 0) {
+      break;
+    }
     free(buffer);
     buffer_size += buffer_inc;
     buffer = (char*) malloc(buffer_size);
-    rc = loadquery(L_GETINFO, buffer, buffer_size);
   }
-  if (rc == 0 && buffer != nullptr) {
+  if (buffer == nullptr) {
+    return; // Don't try to free the buffer.
+  }
+  if (rc == 0) {
     char* buf = buffer;
-    ld_info* cur_info = (ld_info*) buf;
+    ld_info* cur_info = nullptr;
     do {
+      cur_info = (ld_info*) buf;
       char* member_name = cur_info->ldinfo_filename
         + strlen(cur_info->ldinfo_filename) + 1;
       if (*member_name != '\0') {
@@ -1081,7 +1090,6 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
         fprintf(fp, "  %s\n", cur_info->ldinfo_filename);
       }
       buf += cur_info->ldinfo_next;
-      cur_info = (ld_info*) buf;
     } while (cur_info->ldinfo_next != 0);
   }
   free(buffer);
