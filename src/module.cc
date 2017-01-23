@@ -77,7 +77,7 @@ NAN_METHOD(SetEvents) {
   unsigned int previous_events = nodereport_events; // save previous settings
   nodereport_events = ProcessNodeReportEvents(*parameter);
 
-  // If report newly requested for fatalerror, set up the V8 call-back
+  // If report newly requested for fatalerror, set up the V8 callback
   if ((nodereport_events & NR_FATALERROR) && (error_hook_initialised == false)) {
     isolate->SetFatalErrorHandler(OnFatalError);
     error_hook_initialised = true;
@@ -368,7 +368,7 @@ void Initialize(v8::Local<v8::Object> exports) {
     ProcessNodeReportDirectory(directory_name);
   }
 
-  // If report requested for fatalerror, set up the V8 call-back
+  // If report requested for fatalerror, set up the V8 callback
   if (nodereport_events & NR_FATALERROR) {
     isolate->SetFatalErrorHandler(OnFatalError);
     error_hook_initialised = true;
