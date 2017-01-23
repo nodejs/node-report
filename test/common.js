@@ -89,9 +89,10 @@ exports.validate = (t, report, options) => {
               new RegExp('NodeReport version: ' + nodereportMetadata.version),
               'NodeReport section contains expected NodeReport version');
       const sysInfoSection = getSection(reportContents, 'System Information');
-      // Find a line which ends with /api.node or \api.node (Unix or Windows paths.)
-      // to see if the library for node report was loaded.
-      t.match(sysInfoSection, /  .*[\/|\\]api\.node/,
+      // Find a line which ends with "/api.node" or "\api.node"
+      // (Unix or Windows paths) to see if the library for node report was
+      // loaded.
+      t.match(sysInfoSection, /  .*(\/|\\)api\.node/,
         'System Information section contains nodereport library.');
     });
   });
