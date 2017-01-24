@@ -1104,7 +1104,7 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
     return;
   }
   // Get a list of all the modules in this process
-  DWORD size_1, size_2;
+  DWORD size_1 = 0, size_2 = 0;
   // First call to get the size of module array needed
   if (EnumProcessModules(process_handle, NULL, 0, &size_1)) {
     HMODULE* modules = (HMODULE*) malloc(size_1);
@@ -1113,11 +1113,13 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
     }
     // Second call to populate the module array
     if (EnumProcessModules(process_handle, modules, size_1, &size_2)) {
-      for (int i=0; i < size_1/sizeof(HMODULE) && i < size_2/sizeof(HMODULE); i++) {
+      for (int i = 0;
+           i < (size_1 / sizeof(HMODULE)) && i < (size_2 / sizeof(HMODULE));
+           i++) {
         TCHAR module_name[MAX_PATH];
         // Obtain and print the full pathname for each module
         if (GetModuleFileNameEx(process_handle, modules[i], module_name,
-                                sizeof(module_name)/sizeof(TCHAR))) {
+                                sizeof(module_name) / sizeof(TCHAR))) {
           fprintf(fp,"  %s\n", module_name);
         }
       }
