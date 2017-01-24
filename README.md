@@ -19,7 +19,7 @@ node -r node-report app.js
 ```
 A report will be triggered automatically on unhandled exceptions and fatal
 error events (for example out of memory errors), and can also be triggered
-by sending a USR2 signal to a Node.js process (Linux/MacOS only).
+by sending a USR2 signal to a Node.js process (AIX/Linux/MacOS only).
 
 A report can also be triggered via an API call from a JavaScript
 application.
