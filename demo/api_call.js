@@ -1,21 +1,21 @@
 // Example - generation of NodeReport via API call
 var nodereport = require('nodereport');
-var http = require("http");
+var http = require('http');
 
 var count = 0;
 
 function my_listener(request, response) {
   switch(count++) {
   case 0:
-    response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning NodeReport API demo... refresh page to trigger NodeReport");
+    response.writeHead(200, {'Content-Type': 'text/plain'});
+    response.write('\nRunning NodeReport API demo... refresh page to trigger NodeReport');
     response.end();
     break;
   case 1:
-    response.writeHead(200,{"Content-Type": "text/plain"});
+    response.writeHead(200, {'Content-Type': 'text/plain'});
     // Call the nodereport module to trigger a NodeReport
     var filename = nodereport.triggerReport();
-    response.write("\n" + filename + " written - refresh page to close");
+    response.write('\n' + filename + ' written - refresh page to close');
     response.end();
     break;
   default:

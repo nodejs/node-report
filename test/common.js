@@ -65,9 +65,9 @@ exports.validate = (t, report, options) => {
         if (this.isWindows()) {
           // On Windows we need to strip double quotes from the command line in
           // the report, and escape backslashes in the regex comparison string.
-          t.match(nodeReportSection.replace(/"/g,''),
+          t.match(nodeReportSection.replace(/"/g, ''),
                   new RegExp('Command line: '
-                             + (options.commandline).replace(/\\/g,'\\\\')),
+                             + (options.commandline).replace(/\\/g, '\\\\')),
                   'Checking report contains expected command line');
         } else {
           t.match(nodeReportSection,

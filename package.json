@@ -18,12 +18,15 @@
     "Richard Chamberlain <richard_chamberlain@uk.ibm.com> (https://github.com/rnchamberlain)"
   ],
   "scripts": {
-    "test": "tap test/test*.js"
+    "test": "npm run lint && npm run tap",
+    "tap": "tap --timeout 10 test/test*.js",
+    "lint": "eslint **/*.js"
   },
   "bugs": {
     "url": "https://github.com/nodejs/nodereport/issues"
   },
   "devDependencies": {
-    "tap": "^8.0.0"
+    "tap": "^8.0.0",
+    "eslint": "^3.13.1"
   }
 }
