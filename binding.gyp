@@ -10,8 +10,8 @@
           "cflags": [ "-g", "-O2", "-std=c++11", ],
         }],
         ["OS=='win'", {
-          "libraries": [ "dbghelp.lib", "Netapi32.lib" ],
-          "dll_files": [ "dbghelp.dll", "Netapi32.dll" ],
+          "libraries": [ "dbghelp.lib", "Netapi32.lib", "PsApi.lib" ],
+          "dll_files": [ "dbghelp.dll", "Netapi32.dll", "PsApi.dll" ],
         }],
         ["OS=='mac'", {
           "xcode_settings": {
@@ -31,7 +31,7 @@
       "copies": [
         {
           "destination": "<(module_root_dir)",
-          "files": ["<(module_root_dir)/build/Release/api.node"]
+          "files": ["<(PRODUCT_DIR)/api.node"]
         }]
     },
   ],
