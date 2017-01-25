@@ -1,5 +1,6 @@
-#include "node_report.h"
+// Copyright 2017 Nodereport
 #include <nan.h>
+#include "node_report.h"
 
 namespace nodereport {
 
@@ -25,7 +26,7 @@ static unsigned int nodereport_verbose = 0;
 #ifdef _WIN32  // signal trigger not supported on Windows
 static unsigned int nodereport_signal = 0;
 #else  // trigger signal supported on Unix platforms and OSX
-static unsigned int nodereport_signal = SIGUSR2; // default signal is SIGUSR2
+static unsigned int nodereport_signal = SIGUSR2;  // default signal is SIGUSR2
 static int report_signal = 0;  // atomic for signal handling in progress
 static uv_sem_t report_semaphore;  // semaphore for hand-off to watchdog
 static uv_async_t nodereport_trigger_async;  // async handle for event loop
@@ -61,7 +62,8 @@ NAN_METHOD(TriggerReport) {
     }
   }
   if (nodereport_events & NR_APICALL) {
-    TriggerNodeReport(isolate, kJavaScript, "JavaScript API", __func__, filename);
+    TriggerNodeReport(isolate, kJavaScript, "JavaScript API", __func__,
+        filename);
     // Return value is the NodeReport filename
     info.GetReturnValue().Set(Nan::New(filename).ToLocalChecked());
   }
@@ -74,30 +76,38 @@ NAN_METHOD(TriggerReport) {
 NAN_METHOD(SetEvents) {
   Nan::Utf8String parameter(info[0]);
   v8::Isolate* isolate = info.GetIsolate();
-  unsigned int previous_events = nodereport_events; // save previous settings
+  unsigned int previous_events = nodereport_events;  // save previous settings
   nodereport_events = ProcessNodeReportEvents(*parameter);
 
   // If NodeReport newly requested for fatalerror, set up the V8 call-back
-  if ((nodereport_events & NR_FATALERROR) && (error_hook_initialised == false)) {
+  if ((nodereport_events & NR_FATALERROR) &&
+      (error_hook_initialised == false)) {
     isolate->SetFatalErrorHandler(OnFatalError);
     error_hook_initialised = true;
   }
 
-  // If NodeReport newly requested for exceptions, tell V8 to capture stack trace and set up the callback
-  if ((nodereport_events & NR_EXCEPTION) && (exception_hook_initialised == false)) {
-    isolate->SetCaptureStackTraceForUncaughtExceptions(true, 32, v8::StackTrace::kDetailed);
-    // The hook for uncaught exception won't get called unless the --abort_on_uncaught_exception option is set
-    v8::V8::SetFlagsFromString("--abort_on_uncaught_exception", sizeof("--abort_on_uncaught_exception")-1);
+  // If NodeReport newly requested for exceptions, tell V8 to capture stack
+  // trace and set up the callback
+  if ((nodereport_events & NR_EXCEPTION) &&
+      (exception_hook_initialised == false)) {
+    isolate->SetCaptureStackTraceForUncaughtExceptions(true, 32,
+        v8::StackTrace::kDetailed);
+    // The hook for uncaught exception won't get called unless the
+    // --abort_on_uncaught_exception option is set
+    v8::V8::SetFlagsFromString("--abort_on_uncaught_exception",
+                               sizeof("--abort_on_uncaught_exception")-1);
     isolate->SetAbortOnUncaughtExceptionCallback(OnUncaughtException);
     exception_hook_initialised = true;
   }
 
 #ifndef _WIN32
-  // If NodeReport newly requested on external user signal set up watchdog thread and handler
+  // If NodeReport newly requested on external user signal set up watchdog
+  // thread and handler
   if ((nodereport_events & NR_SIGNAL) && (signal_thread_initialised == false)) {
     SetupSignalHandler();
   }
-  // If NodeReport no longer required on external user signal, reset the OS signal handler
+  // If NodeReport no longer required on external user signal, reset the OS
+  // signal handler
   if (!(nodereport_events & NR_SIGNAL) && (previous_events & NR_SIGNAL)) {
     RestoreSignalHandler(nodereport_signal, &saved_sa);
   }
@@ -106,11 +116,13 @@ NAN_METHOD(SetEvents) {
 NAN_METHOD(SetSignal) {
 #ifndef _WIN32
   Nan::Utf8String parameter(info[0]);
-  unsigned int previous_signal = nodereport_signal; // save previous setting
+  unsigned int previous_signal = nodereport_signal;  // save previous setting
   nodereport_signal = ProcessNodeReportSignal(*parameter);
 
-  // If signal event active and selected signal has changed, switch the OS signal handler
-  if ((nodereport_events & NR_SIGNAL) && (nodereport_signal != previous_signal)) {
+  // If signal event active and selected signal has changed, switch the OS
+  // signal handler
+  if ((nodereport_events & NR_SIGNAL) &&
+      (nodereport_signal != previous_signal)) {
     RestoreSignalHandler(previous_signal, &saved_sa);
     RegisterSignalHandler(nodereport_signal, SignalDump, &saved_sa);
   }
@@ -141,7 +153,8 @@ static void OnFatalError(const char* location, const char* message) {
   }
   // Trigger NodeReport if requested
   if (nodereport_events & NR_FATALERROR) {
-    TriggerNodeReport(Isolate::GetCurrent(), kFatalError, message, location, nullptr);
+    TriggerNodeReport(Isolate::GetCurrent(), kFatalError, message, location,
+        nullptr);
   }
   fflush(stderr);
   raise(SIGABRT);
@@ -152,8 +165,10 @@ bool OnUncaughtException(v8::Isolate* isolate) {
   if (nodereport_events & NR_EXCEPTION) {
     TriggerNodeReport(isolate, kException, "exception", __func__, nullptr);
   }
-  if ((commandline_string.find("abort-on-uncaught-exception") != std::string::npos) ||
-      (commandline_string.find("abort_on_uncaught_exception") != std::string::npos)) {
+  if ((commandline_string.find("abort-on-uncaught-exception")
+      != std::string::npos) ||
+      (commandline_string.find("abort_on_uncaught_exception")
+      != std::string::npos)) {
     return true;  // abort required
   }
   // On V8 versions earlier than 5.4 we need to print the exception backtrace
@@ -177,7 +192,7 @@ bool OnUncaughtException(v8::Isolate* isolate) {
 #ifdef _WIN32
 static void PrintStackFromStackTrace(Isolate* isolate, FILE* fp) {
   Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, 255,
-                                                          StackTrace::kDetailed);
+      StackTrace::kDetailed);
   // Print the JavaScript function name and source information for each frame
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     Local<StackFrame> frame = stack->GetFrame(i);
@@ -190,13 +205,15 @@ static void PrintStackFromStackTrace(Isolate* isolate, FILE* fp) {
       if (frame->GetScriptId() == Message::kNoScriptIdInfo) {
         fprintf(fp, "at [eval]:%i:%i\n", line_number, column);
       } else {
-        fprintf(fp, "at [eval] (%s:%i:%i)\n", *script_name, line_number, column);
+        fprintf(fp, "at [eval] (%s:%i:%i)\n", *script_name, line_number,
+                column);
       }
     } else {
       if (fn_name_s.length() == 0) {
         fprintf(fp, "%s:%i:%i\n", *script_name, line_number, column);
       } else {
-        fprintf(fp, "%s (%s:%i:%i)\n", *fn_name_s, *script_name, line_number, column);
+        fprintf(fp, "%s (%s:%i:%i)\n", *fn_name_s, *script_name, line_number,
+                column);
       }
     }
   }
@@ -206,11 +223,13 @@ static void PrintStackFromStackTrace(Isolate* isolate, FILE* fp) {
 static void SignalDumpInterruptCallback(Isolate* isolate, void* data) {
   if (report_signal != 0) {
     if (nodereport_verbose) {
-      fprintf(stdout, "nodereport: SignalDumpInterruptCallback handling signal\n");
+      fprintf(stdout, "nodereport: SignalDumpInterruptCallback handling"
+          " signal\n");
     }
     if (nodereport_events & NR_SIGNAL) {
       if (nodereport_verbose) {
-        fprintf(stdout, "nodereport: SignalDumpInterruptCallback triggering NodeReport\n");
+        fprintf(stdout, "nodereport: SignalDumpInterruptCallback triggering"
+            " NodeReport\n");
       }
       TriggerNodeReport(isolate, kSignal_JS,
                         node::signo_string(report_signal), __func__, nullptr);
@@ -225,7 +244,8 @@ static void SignalDumpAsyncCallback(uv_async_t* handle) {
     }
     if (nodereport_events & NR_SIGNAL) {
       if (nodereport_verbose) {
-        fprintf(stdout, "nodereport: SignalDumpAsyncCallback triggering NodeReport\n");
+        fprintf(stdout, "nodereport: SignalDumpAsyncCallback triggering"
+            " NodeReport\n");
       }
       TriggerNodeReport(Isolate::GetCurrent(), kSignal_UV,
                         node::signo_string(report_signal), __func__, nullptr);
@@ -283,7 +303,8 @@ static int StartWatchdogThread(void* (*thread_main)(void* unused)) {
   pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
   pthread_attr_destroy(&attr);
   if (err != 0) {
-    fprintf(stderr, "nodereport: StartWatchdogThread pthread_create() failed: %s\n", strerror(err));
+    fprintf(stderr, "nodereport: StartWatchdogThread pthread_create() failed:"
+        " %s\n", strerror(err));
     fflush(stderr);
     return -err;
   }
@@ -295,7 +316,8 @@ inline void* ReportSignalThreadMain(void* unused) {
   for (;;) {
     uv_sem_wait(&report_semaphore);
     if (nodereport_verbose) {
-      fprintf(stdout, "nodereport: signal %s received\n", node::signo_string(report_signal));
+      fprintf(stdout, "nodereport: signal %s received\n",
+          node::signo_string(report_signal));
     }
     uv_mutex_lock(&node_isolate_mutex);
     if (auto isolate = node_isolate) {
@@ -313,20 +335,27 @@ inline void* ReportSignalThreadMain(void* unused) {
 static void SetupSignalHandler() {
   int rc = uv_sem_init(&report_semaphore, 0);
   if (rc != 0) {
-    fprintf(stderr, "nodereport: initialization failed, uv_sem_init() returned %d\n", rc);
-    Nan::ThrowError("nodereport: initialization failed, uv_sem_init() returned error\n");
+    fprintf(stderr, "nodereport: initialization failed, uv_sem_init()"
+        " returned %d\n", rc);
+    Nan::ThrowError("nodereport: initialization failed, uv_sem_init()"
+        " returned error\n");
   }
   rc = uv_mutex_init(&node_isolate_mutex);
   if (rc != 0) {
-    fprintf(stderr, "nodereport: initialization failed, uv_mutex_init() returned %d\n", rc);
-    Nan::ThrowError("nodereport: initialization failed, uv_mutex_init() returned error\n");
+    fprintf(stderr, "nodereport: initialization failed, uv_mutex_init()"
+        " returned %d\n", rc);
+    Nan::ThrowError("nodereport: initialization failed, uv_mutex_init()"
+        " returned error\n");
   }
 
   if (StartWatchdogThread(ReportSignalThreadMain) == 0) {
-    rc = uv_async_init(uv_default_loop(), &nodereport_trigger_async, SignalDumpAsyncCallback);
+    rc = uv_async_init(uv_default_loop(), &nodereport_trigger_async,
+        SignalDumpAsyncCallback);
     if (rc != 0) {
-      fprintf(stderr, "nodereport: initialization failed, uv_async_init() returned %d\n", rc);
-      Nan::ThrowError("nodereport: initialization failed, uv_async_init() returned error\n");
+      fprintf(stderr, "nodereport: initialization failed, uv_async_init()"
+          " returned %d\n", rc);
+      Nan::ThrowError("nodereport: initialization failed, uv_async_init()"
+          " returned error\n");
     }
     uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
     RegisterSignalHandler(nodereport_signal, SignalDump, &saved_sa);
@@ -374,17 +403,22 @@ void Initialize(v8::Local<v8::Object> exports) {
     error_hook_initialised = true;
   }
 
-  // If NodeReport requested for exceptions, tell V8 to capture stack trace and set up the callback
+  // If NodeReport requested for exceptions, tell V8 to capture stack trace and
+  // set up the callback
   if (nodereport_events & NR_EXCEPTION) {
-    isolate->SetCaptureStackTraceForUncaughtExceptions(true, 32, v8::StackTrace::kDetailed);
-    // The hook for uncaught exception won't get called unless the --abort_on_uncaught_exception option is set
-    v8::V8::SetFlagsFromString("--abort_on_uncaught_exception", sizeof("--abort_on_uncaught_exception")-1);
+    isolate->SetCaptureStackTraceForUncaughtExceptions(true, 32,
+          v8::StackTrace::kDetailed);
+    // The hook for uncaught exception won't get called unless the
+    // --abort_on_uncaught_exception option is set
+    v8::V8::SetFlagsFromString("--abort_on_uncaught_exception",
+        sizeof("--abort_on_uncaught_exception")-1);
     isolate->SetAbortOnUncaughtExceptionCallback(OnUncaughtException);
     exception_hook_initialised = true;
   }
 
 #ifndef _WIN32
-  // If NodeReport requested on external user signal set up watchdog thread and callbacks
+  // If NodeReport requested on external user signal set up watchdog thread
+  // and callbacks
   if (nodereport_events & NR_SIGNAL) {
     SetupSignalHandler();
   }
@@ -408,7 +442,8 @@ void Initialize(v8::Local<v8::Object> exports) {
     fprintf(stdout, "nodereport: initialization complete, event flags: %#x\n",
             nodereport_events);
 #else
-    fprintf(stdout, "nodereport: initialization complete, event flags: %#x signal flag: %#x\n",
+    fprintf(stdout, "nodereport: initialization complete, event flags: %#x"
+        " signal flag: %#x\n",
             nodereport_events, nodereport_signal);
 #endif
   }
@@ -417,4 +452,3 @@ void Initialize(v8::Local<v8::Object> exports) {
 NODE_MODULE(nodereport, Initialize)
 
 }  // namespace nodereport
-
