@@ -18,12 +18,15 @@
     "Richard Chamberlain <richard_chamberlain@uk.ibm.com> (https://github.com/rnchamberlain)"
   ],
   "scripts": {
+    "lint": "node-style",
+    "pretest": "npm run lint",
     "test": "tap test/test*.js"
   },
   "bugs": {
     "url": "https://github.com/nodejs/nodereport/issues"
   },
   "devDependencies": {
+    "node-style": "^2.0.0",
     "tap": "^8.0.0"
   }
 }

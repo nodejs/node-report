@@ -42,3 +42,4 @@ NodeReport*.txt
 npm-debug.log
 nodereport-*.tgz
 nodereport_test.log
+.eslintcache

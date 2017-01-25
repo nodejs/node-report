@@ -19,7 +19,7 @@ if (process.argv[2] === 'child') {
     tap.equal(reports.length, 1, 'Found reports ' + reports);
     const report = reports[0];
     const validateOpts = { pid: child.pid, expectNodeVersion: true,
-      commandline: child.spawnargs.join(' '), };
+      commandline: child.spawnargs.join(' ') };
     common.validate(tap, report, validateOpts);
   });
 }
