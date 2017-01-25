@@ -4,7 +4,7 @@
 if (process.argv[2] === 'child') {
   require('../');
 
-  function myException(request, response) {
+  function myException() {
     const m = '*** test-exception.js: throwing uncaught Error';
     throw new Error(m);
   }
@@ -26,7 +26,7 @@ if (process.argv[2] === 'child') {
     tap.plan(4);
     // Verify exit code. Note that behaviour changed in V8 v5.4
     const v8_version = (process.versions.v8).match(/\d+/g);
-    if (v8_version[0] < 5 || (v8_version[0] == 5 && v8_version[1] < 4)) {
+    if (v8_version[0] < 5 || (v8_version[0] === 5 && v8_version[1] < 4)) {
       tap.equal(code, 0, 'Check for expected process exit code');
     } else {
       tap.equal(code, 1, 'Check for expected process exit code');

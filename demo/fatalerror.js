@@ -1,5 +1,5 @@
 // Example - generation of Nodereport on fatal error (Javascript heap OOM)
-require('nodereport').setEvents("fatalerror");
+require('nodereport').setEvents('fatalerror');
 var http = require('http');
 
 var count = 0;
@@ -7,8 +7,8 @@ var count = 0;
 function my_listener(request, response) {
   switch(count++) {
   case 0:
-    response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning NodeReport fatal error demo... refresh page to trigger excessive memory usage (application will terminate)");
+    response.writeHead(200, {'Content-Type': 'text/plain'});
+    response.write('\nRunning NodeReport fatal error demo... refresh page to trigger excessive memory usage (application will terminate)');
     response.end();
     break;
   case 1:
@@ -17,8 +17,10 @@ function my_listener(request, response) {
     while (true) {
       list.push(new MyRecord());
     }
+    /*eslint-disable no-unreachable */
     response.end();
     break;
+    /*eslint-enable no-unreachable */
   }
 }
 

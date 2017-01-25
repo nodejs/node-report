@@ -1,0 +1,18 @@
+env:
+  node: true
+  es6: true
+
+rules:
+  indent: [2, 2]
+  quotes: [2, single]
+  no-trailing-spaces: 2
+  comma-spacing: [2, { before: false, after: true }]
+  eqeqeq: [2, always]
+  linebreak-style: [2, unix]
+  semi: [2, always]
+  no-console: 0
+  no-inner-declarations: 0
+  no-constant-condition: 0
+  no-regex-spaces: 0
+
+extends: eslint:recommended

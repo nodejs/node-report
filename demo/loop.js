@@ -1,34 +1,35 @@
 // Example - geneation of Nodereport via signal for a looping application
-require('nodereport').setEvents("signal");
-var http = require("http");
+require('nodereport').setEvents('signal');
+var http = require('http');
 
 var count = 0;
 
 function my_listener(request, response) {
   switch(count++) {
   case 0:
-    response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning NodeReport looping application demo. Node process ID = " + process.pid);
-    response.write("\n\nRefresh page to enter loop, then use 'kill -USR2 " + process.pid + "' to trigger NodeReport");
+    response.writeHead(200, {'Content-Type': 'text/plain'});
+    response.write('\nRunning NodeReport looping application demo. Node process ID = ' + process.pid);
+    response.write('\n\nRefresh page to enter loop, then use \'kill -USR2 ' + process.pid + '\' to trigger NodeReport');
     response.end();
     break;
   case 1:
-    console.log("loop.js: going to loop now, use 'kill -USR2 " + process.pid + "' to trigger NodeReport");
+    console.log('loop.js: going to loop now, use \'kill -USR2 ' + process.pid + '\' to trigger NodeReport');
     var list = [];
+    var j='';
     for (var i=0; i<10000000000; i++) {
-      for (var j=0; i<1000; i++) {
+      for (j=0; i<1000; i++) {
         list.push(new MyRecord());
       }
-      for (var j=0; i<1000; i++) {
+      for (j=0; i<1000; i++) {
         list[j].id += 1;
         list[j].account += 2;
       }
-      for (var j=0; i<1000; i++) {
+      for (j=0; i<1000; i++) {
         list.pop();
       }
     }
-    response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nNodeReport demo.... finished looping");
+    response.writeHead(200, {'Content-Type': 'text/plain'});
+    response.write('\nNodeReport demo.... finished looping');
     response.end();
     break;
   default:
