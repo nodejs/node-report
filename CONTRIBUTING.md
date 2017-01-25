@@ -1,4 +1,4 @@
-# Contributing to nodereport
+# Contributing to node-report
 
 ## Code of Conduct
 
@@ -8,7 +8,7 @@ The [Node.js Code of Conduct][] applies to this repo.
 
 ## Code Contributions
 
-The nodereport project falls under the governance of the post-mortem
+The node-report project falls under the governance of the post-mortem
 working group which is documented in:
 https://github.com/nodejs/post-mortem/blob/master/GOVERNANCE.md
 

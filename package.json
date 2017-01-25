@@ -1,11 +1,11 @@
 {
-  "name": "nodereport",
+  "name": "node-report",
   "version": "1.0.7",
   "description": "Diagnostic NodeReport",
-  "homepage": "https://github.com/nodejs/nodereport#readme",
+  "homepage": "https://github.com/nodejs/node-report#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nodejs/nodereport.git"
+    "url": "https://github.com/nodejs/node-report.git"
   },
   "engines": {
     "node": ">=4.0.0"
@@ -21,7 +21,7 @@
     "test": "tap test/test*.js"
   },
   "bugs": {
-    "url": "https://github.com/nodejs/nodereport/issues"
+    "url": "https://github.com/nodejs/node-report/issues"
   },
   "devDependencies": {
     "tap": "^8.0.0"
