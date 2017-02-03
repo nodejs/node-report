@@ -1,7 +1,7 @@
 'use strict';
 
-// Testcase to produce NodeReport via API call, using the no-hooks/no-signal
-// interface - i.e. require('nodereport/api')
+// Testcase to produce report via API call, using the no-hooks/no-signal
+// interface - i.e. require('node-report/api')
 if (process.argv[2] === 'child') {
   const nodereport = require('../api');
   nodereport.triggerReport();

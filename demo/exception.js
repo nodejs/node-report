@@ -1,5 +1,5 @@
-// Example - generation of NodeReport on uncaught exception
-require('nodereport').setEvents("exception");
+// Example - generation of report on uncaught exception
+require('node-report').setEvents("exception");
 var http = require("http");
 
 var count = 0;
@@ -8,7 +8,7 @@ function my_listener(request, response) {
   switch(count++) {
   case 0:
     response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning NodeReport exception demo... refresh page to cause exception (application will terminate)");
+    response.write("\nRunning node-report exception demo... refresh page to cause exception (application will terminate)");
     response.end();
     break;
   default:

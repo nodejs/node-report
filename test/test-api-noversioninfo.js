@@ -1,6 +1,6 @@
 'use strict';
 
-// Testcase to check NodeReport succeeds if both process.version and
+// Testcase to check report succeeds if both process.version and
 // process.versions are damaged
 if (process.argv[2] === 'child') {
   // Tamper with the process object

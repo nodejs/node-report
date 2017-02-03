@@ -1,6 +1,6 @@
 'use strict';
 
-// Testcase to check NodeReport succeeds if process.versions is damaged
+// Testcase to check report succeeds if process.versions is damaged
 if (process.argv[2] === 'child') {
   // Tamper with the process object
   Object.defineProperty(process, 'versions', {get() { throw 'boom'; }});

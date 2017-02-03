@@ -1,4 +1,4 @@
-// Main module entry point for nodereport
+// Main module entry point for node-report
 
 const api = require('./api');
 

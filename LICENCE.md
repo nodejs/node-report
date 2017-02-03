@@ -1,7 +1,7 @@
 The MIT License (MIT)
 =====================
 
-Copyright (c) 2016 nodereport contributors
+Copyright (c) 2016 node-report contributors
 --------------------------------------------------
 
 *nodereport contributors listed at <https://github.com/nodejs/nodereport/blob/master/AUTHORS>*
