@@ -3,7 +3,7 @@
 const fs = require('fs');
 
 const REPORT_SECTIONS = [
-  'NodeReport',
+  'Node Report',
   'JavaScript Stack Trace',
   'JavaScript Heap',
   'System Information'
@@ -12,8 +12,8 @@ const REPORT_SECTIONS = [
 const reNewline = '(?:\\r*\\n)';
 
 exports.findReports = (pid) => {
-  // Default filenames are of the form NodeReport.<date>.<time>.<pid>.<seq>.txt
-  const format = '^NodeReport\\.\\d+\\.\\d+\\.' + pid + '\\.\\d+\\.txt$';
+  // Default filenames are of the form node-report.<date>.<time>.<pid>.<seq>.txt
+  const format = '^node-report\\.\\d+\\.\\d+\\.' + pid + '\\.\\d+\\.txt$';
   const filePattern = new RegExp(format);
   const files = fs.readdirSync('.');
   return files.filter((file) => filePattern.test(file));
@@ -49,17 +49,17 @@ exports.validate = (t, report, options) => {
                 'Checking report contains ' + section + ' section');
       });
 
-      // Check NodeReport header section
-      const nodeReportSection = getSection(reportContents, 'NodeReport');
+      // Check report header section
+      const nodeReportSection = getSection(reportContents, 'Node Report');
       t.match(nodeReportSection, new RegExp('Process ID: ' + pid),
-              'NodeReport section contains expected process ID');
+              'Node Report header section contains expected process ID');
       if (options && options.expectNodeVersion === false) {
         t.match(nodeReportSection, /Unable to determine Node.js version/,
-                'NodeReport section contains expected Node.js version');
+                'Node Report header section contains expected Node.js version');
       } else {
         t.match(nodeReportSection,
                 new RegExp('Node.js version: ' + process.version),
-                'NodeReport section contains expected Node.js version');
+                'Node Report header section contains expected Node.js version');
       }
       if (options && options.commandline) {
         if (this.isWindows()) {
@@ -80,24 +80,23 @@ exports.validate = (t, report, options) => {
           if (expectedVersions.indexOf(c) === -1) {
             t.notMatch(nodeReportSection,
                        new RegExp(c + ': ' + process.versions[c]),
-                       'NodeReport section does not contain ' + c + ' version');
+                       'Node Report header section does not contain ' + c + ' version');
           } else {
             t.match(nodeReportSection,
                     new RegExp(c + ': ' + process.versions[c]),
-                    'NodeReport section contains expected ' + c + ' version');
+                    'Node Report header section contains expected ' + c + ' version');
           }
         }
       });
       const nodereportMetadata = require('../package.json');
       t.match(nodeReportSection,
-              new RegExp('NodeReport version: ' + nodereportMetadata.version),
-              'NodeReport section contains expected NodeReport version');
+              new RegExp('node-report version: ' + nodereportMetadata.version),
+              'Node Report header section contains expected NodeReport version');
       const sysInfoSection = getSection(reportContents, 'System Information');
-      // Find a line which ends with "/api.node" or "\api.node"
-      // (Unix or Windows paths) to see if the library for node report was
-      // loaded.
+      // Find a line which ends with "/api.node" or "\api.node" (Unix or
+      // Windows paths) to see if the library for node report was loaded.
       t.match(sysInfoSection, /  .*(\/|\\)api\.node/,
-        'System Information section contains nodereport library.');
+        'System Information section contains node-report library.');
     });
   });
 };

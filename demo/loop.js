@@ -1,5 +1,5 @@
-// Example - geneation of Nodereport via signal for a looping application
-require('nodereport').setEvents("signal");
+// Example - generation of report via signal for a looping application
+require('node-report').setEvents("signal");
 var http = require("http");
 
 var count = 0;
@@ -8,12 +8,12 @@ function my_listener(request, response) {
   switch(count++) {
   case 0:
     response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning NodeReport looping application demo. Node process ID = " + process.pid);
-    response.write("\n\nRefresh page to enter loop, then use 'kill -USR2 " + process.pid + "' to trigger NodeReport");
+    response.write("\nRunning node-report looping application demo. Node process ID = " + process.pid);
+    response.write("\n\nRefresh page to enter loop, then use 'kill -USR2 " + process.pid + "' to trigger report");
     response.end();
     break;
   case 1:
-    console.log("loop.js: going to loop now, use 'kill -USR2 " + process.pid + "' to trigger NodeReport");
+    console.log("loop.js: going to loop now, use 'kill -USR2 " + process.pid + "' to trigger report");
     var list = [];
     for (var i=0; i<10000000000; i++) {
       for (var j=0; i<1000; i++) {
@@ -28,7 +28,7 @@ function my_listener(request, response) {
       }
     }
     response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nNodeReport demo.... finished looping");
+    response.write("\nnode-report demo.... finished looping");
     response.end();
     break;
   default:
