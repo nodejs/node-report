@@ -33,6 +33,9 @@
 *.project
 *.cproject
 
+# Linter files
+cpplint.py
+
 # Build directories
 /build/
 /node_modules/
