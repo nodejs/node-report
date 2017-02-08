@@ -1,4 +1,7 @@
 {
+  'variables': {
+        'node_major_version': '<!(node -e "console.log(process.version.substr(1,1))")',
+  },
   "targets": [
     {
       "target_name": "api",
@@ -13,7 +16,7 @@
           "libraries": [ "dbghelp.lib", "Netapi32.lib", "PsApi.lib" ],
           "dll_files": [ "dbghelp.dll", "Netapi32.dll", "PsApi.dll" ],
         }],
-        ["OS=='mac'", {
+        ["OS=='mac' and node_major_version > 5", {
           "xcode_settings": {
             'CLANG_CXX_LIBRARY': 'libc++',
             'CLANG_CXX_LANGUAGE_STANDARD':'c++11',
