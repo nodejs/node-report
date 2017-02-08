@@ -264,26 +264,21 @@ void SetVersionString(Isolate* isolate) {
   // (ares: 1.10.1-DEV, http_parser: 2.7.0, icu: 57.1, modules: 48,
   //  openssl: 1.0.2j, uv: 1.9.1, v8: 5.1.281.84, zlib: 1.2.8)
   const size_t wrap = 80;
-  size_t line_length = 1;
   version_string += "(";
+  const char* separator = "";
+  std::string versions = "";
   for (auto it : comp_versions) {
-    std::string component_name = it.first;
-    std::string component_version = it.second;
-    size_t length = component_name.length() + component_version.length() + 2;
-    if (line_length + length + 1 >= wrap) {
-      version_string += "\n ";
-      line_length = 1;
+    std::string comp_version_string = it.first;
+    comp_version_string += ": ";
+    comp_version_string += it.second;
+    versions += separator;
+    if (wrap - (versions.length() % wrap) < comp_version_string.length()) {
+      versions += "\n ";
     }
-    version_string += component_name;
-    version_string += ": ";
-    version_string += component_version;
-    line_length += length;
-    if (it != *std::prev(comp_versions.end())) {
-      version_string += ", ";
-      line_length += 2;
-    }
+    separator = ", ";
+    versions += comp_version_string;
   }
-  version_string += ")\n";
+  version_string += versions + ")\n";
 }
 
 /*******************************************************************************

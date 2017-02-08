@@ -13,12 +13,6 @@
           "libraries": [ "dbghelp.lib", "Netapi32.lib", "PsApi.lib" ],
           "dll_files": [ "dbghelp.dll", "Netapi32.dll", "PsApi.dll" ],
         }],
-        ["OS=='mac'", {
-          "xcode_settings": {
-            'CLANG_CXX_LIBRARY': 'libc++',
-            'CLANG_CXX_LANGUAGE_STANDARD':'c++11',
-          }
-        }],
       ],
       "defines": [
         'NODEREPORT_VERSION="<!(node -p \"require(\'./package.json\').version\")"'
