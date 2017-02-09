@@ -8,7 +8,7 @@ function my_listener(request, response) {
   switch(count++) {
   case 0:
     response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning node-report API demo... refresh page to trigger NodeReport");
+    response.write("\nRunning node-report API demo... refresh page to trigger report");
     response.end();
     break;
   case 1:

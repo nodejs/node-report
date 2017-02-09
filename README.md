@@ -66,11 +66,12 @@ nodereport.triggerReport("myReportName");
 Additional configuration is available using the following APIs:
 
 ```js
-setEvents("exception+fatalerror+signal+apicall");
-setSignal("SIGUSR2|SIGQUIT");
-setFileName("stdout|stderr|<filename>");
-setDirectory("<full path>");
-setVerbose("yes|no");
+var nodereport = require('node-report/api');
+nodereport.setEvents("exception+fatalerror+signal+apicall");
+nodereport.setSignal("SIGUSR2|SIGQUIT");
+nodereport.setFileName("stdout|stderr|<filename>");
+nodereport.setDirectory("<full path>");
+nodereport.setVerbose("yes|no");
 ```
 
 Configuration on module initialization is also available via environment variables:
