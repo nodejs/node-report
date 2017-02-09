@@ -1,3 +1,27 @@
+2017-02-09, Version 2.0.0
+=========================
+
+ * mac: Fix compilation errors (Howard Hellyer)
+
+ * Rename nodereport module to node-report (Richard Chamberlain)
+
+ * Fix source directory for install target (Richard Lau)
+
+ * aix: skip command line check for test-fatal-error (Richard Lau)
+
+ * Add the list of library files loaded by the process to nodereport. (Howard Hellyer)
+
+ * docs: AIX supports triggering on USR2 signal (Richard Lau)
+
+ * Fix behaviour on exception to match node default (Richard Chamberlain)
+
+ * Adds the command line used to start the node process to nodereport. (Howard Hellyer)
+
+ * Opt-in hooks and signal by default (Richard Chamberlain)
+
+ * Fix for clang warning: libstdc++ is deprecated (Richard Chamberlain)
+
+
 2016-12-12, Version 1.0.7
 =========================
 
