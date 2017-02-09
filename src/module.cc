@@ -1,5 +1,6 @@
 #include "node_report.h"
 #include <nan.h>
+#include <sstream>
 
 namespace nodereport {
 
@@ -65,6 +66,20 @@ NAN_METHOD(TriggerReport) {
     // Return value is the report filename
     info.GetReturnValue().Set(Nan::New(filename).ToLocalChecked());
   }
+}
+
+/*******************************************************************************
+ * External JavaScript API for returning a report
+ *
+ ******************************************************************************/
+NAN_METHOD(GetReport) {
+  Nan::HandleScope scope;
+  v8::Isolate* isolate = info.GetIsolate();
+  std::ostringstream out;
+
+  GetNodeReport(isolate, kJavaScript, "JavaScript API", __func__, out);
+  // Return value is the contents of a NodeReport as a string.
+  info.GetReturnValue().Set(Nan::New(out.str()).ToLocalChecked());
 }
 
 /*******************************************************************************
@@ -392,6 +407,8 @@ void Initialize(v8::Local<v8::Object> exports) {
 
   exports->Set(Nan::New("triggerReport").ToLocalChecked(),
                Nan::New<v8::FunctionTemplate>(TriggerReport)->GetFunction());
+  exports->Set(Nan::New("getReport").ToLocalChecked(),
+               Nan::New<v8::FunctionTemplate>(GetReport)->GetFunction());
   exports->Set(Nan::New("setEvents").ToLocalChecked(),
                Nan::New<v8::FunctionTemplate>(SetEvents)->GetFunction());
   exports->Set(Nan::New("setSignal").ToLocalChecked(),
