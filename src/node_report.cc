@@ -696,8 +696,13 @@ static void PrintVersionInformation(std::ostream& out) {
   // Print operating system and machine information (Unix/OSX)
   struct utsname os_info;
   if (uname(&os_info) == 0) {
+#if defined(_AIX)
+    out << "\nOS version: " << os_info.sysname << " " << os_info.version << "."
+        << os_info.release << "\n";
+#else
     out << "\nOS version: " << os_info.sysname << " " << os_info.release << " "
         << os_info.version << "\n";
+#endif
 #if defined(__GLIBC__)
     out << "(glibc: "<< __GLIBC__ << "." << __GLIBC_MINOR__ << ")\n";
 #endif
