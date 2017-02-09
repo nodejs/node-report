@@ -1,6 +1,6 @@
 'use strict';
 
-// Testcase to produce NodeReport via API call
+// Testcase to produce report via API call
 if (process.argv[2] === 'child') {
   const nodereport = require('../');
   nodereport.triggerReport();

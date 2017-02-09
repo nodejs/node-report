@@ -39,6 +39,7 @@
 
 # Package files
 NodeReport*.txt
+node-report*.txt
 npm-debug.log
 nodereport-*.tgz
 nodereport_test.log
