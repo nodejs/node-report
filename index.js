@@ -7,6 +7,7 @@ const options = process.env.NODEREPORT_EVENTS || 'exception+fatalerror+signal+ap
 api.setEvents(options);
 
 exports.triggerReport = api.triggerReport;
+exports.getReport = api.getReport;
 exports.setEvents = api.setEvents;
 exports.setCoreDump = api.setCoreDump;
 exports.setSignal = api.setSignal;

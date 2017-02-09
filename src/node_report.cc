@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
+#include <fstream>
 
 #if !defined(_MSC_VER)
 #include <strings.h>
@@ -69,20 +71,27 @@ using v8::Message;
 using v8::String;
 using v8::V8;
 
-// Internal/static function declarations
-static void PrintCommandLine(FILE* fp);
-static void PrintVersionInformation(FILE* fp, Isolate* isolate);
-static void PrintJavaScriptStack(FILE* fp, Isolate* isolate, DumpEvent event, const char* location);
-static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event);
-static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame, int index, void* pc);
-static void PrintNativeStack(FILE* fp);
-#ifndef _WIN32
-static void PrintResourceUsage(FILE* fp);
+#ifdef _WIN32
+typedef SYSTEMTIME TIME_TYPE;
+#else  // UNIX, OSX
+typedef struct tm TIME_TYPE;
 #endif
-static void PrintGCStatistics(FILE* fp, Isolate* isolate);
-static void PrintSystemInformation(FILE* fp, Isolate* isolate);
-static void PrintLoadedLibraries(FILE* fp, Isolate* isolate);
-static void WriteInteger(FILE* fp, size_t value);
+
+// Internal/static function declarations
+static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, TIME_TYPE* time);
+static void PrintCommandLine(std::ostream& out);
+static void PrintVersionInformation(std::ostream& out);
+static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent event, const char* location);
+static void PrintStackFromStackTrace(std::ostream& out, Isolate* isolate, DumpEvent event);
+static void PrintStackFrame(std::ostream& out, Isolate* isolate, Local<StackFrame> frame, int index, void* pc);
+static void PrintNativeStack(std::ostream& out);
+#ifndef _WIN32
+static void PrintResourceUsage(std::ostream& out);
+#endif
+static void PrintGCStatistics(std::ostream& out, Isolate* isolate);
+static void PrintSystemInformation(std::ostream& out, Isolate* isolate);
+static void PrintLoadedLibraries(std::ostream& out, Isolate* isolate);
+static void WriteInteger(std::ostream& out, size_t value);
 
 // Global variables
 static int seq = 0;  // sequence number for report filenames
@@ -92,11 +101,7 @@ static char report_filename[NR_MAXNAME + 1] = "";
 static char report_directory[NR_MAXPATH + 1] = ""; // defaults to current working directory
 std::string version_string = UNKNOWN_NODEVERSION_STRING;
 std::string commandline_string = "";
-#ifdef _WIN32
-static SYSTEMTIME loadtime_tm_struct; // module load time
-#else  // UNIX, OSX
-static struct tm loadtime_tm_struct; // module load time
-#endif
+static TIME_TYPE loadtime_tm_struct; // module load time
 
 /*******************************************************************************
  * Functions to process node-report configuration options:
@@ -125,7 +130,7 @@ unsigned int ProcessNodeReportEvents(const char* args) {
       event_flags |= NR_APICALL;
       cursor += sizeof("apicall") - 1;
     } else {
-      fprintf(stderr, "Unrecognised argument for node-report events option: %s\n", cursor);
+      std::cerr << "Unrecognised argument for node-report events option: " << cursor << "\n";
       return 0;
     }
     if (*cursor == '+') {
@@ -140,7 +145,7 @@ unsigned int ProcessNodeReportSignal(const char* args) {
   return 0; // no-op on Windows
 #else
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for node-report signal option\n");
+    std::cerr << "Missing argument for node-report signal option\n";
   } else {
     // Parse the supplied switch
     if (!strncmp(args, "SIGUSR2", sizeof("SIGUSR2") - 1)) {
@@ -148,7 +153,7 @@ unsigned int ProcessNodeReportSignal(const char* args) {
     } else if (!strncmp(args, "SIGQUIT", sizeof("SIGQUIT") - 1)) {
       return SIGQUIT;
     } else {
-      fprintf(stderr, "Unrecognised argument for node-report signal option: %s\n", args);
+     std::cerr << "Unrecognised argument for node-report signal option: "<< args << "\n";
     }
   }
   return SIGUSR2;  // Default signal is SIGUSR2
@@ -157,11 +162,11 @@ unsigned int ProcessNodeReportSignal(const char* args) {
 
 void ProcessNodeReportFileName(const char* args) {
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for node-report filename option\n");
+    std::cerr << "Missing argument for node-report filename option\n";
     return;
   }
   if (strlen(args) > NR_MAXNAME) {
-    fprintf(stderr, "Supplied node-report filename too long (max %d characters)\n", NR_MAXNAME);
+    std::cerr << "Supplied node-report filename too long (max " << NR_MAXNAME << " characters)\n";
     return;
   }
   snprintf(report_filename, sizeof(report_filename), "%s", args);
@@ -169,11 +174,11 @@ void ProcessNodeReportFileName(const char* args) {
 
 void ProcessNodeReportDirectory(const char* args) {
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for node-report directory option\n");
+    std::cerr << "Missing argument for node-report directory option\n";
     return;
   }
   if (strlen(args) > NR_MAXPATH) {
-    fprintf(stderr, "Supplied node-report directory path too long (max %d characters)\n", NR_MAXPATH);
+    std::cerr << "Supplied node-report directory path too long (max " << NR_MAXPATH << " characters)\n";
     return;
   }
   snprintf(report_directory, sizeof(report_directory), "%s", args);
@@ -181,7 +186,7 @@ void ProcessNodeReportDirectory(const char* args) {
 
 unsigned int ProcessNodeReportVerboseSwitch(const char* args) {
   if (strlen(args) == 0) {
-    fprintf(stderr, "Missing argument for node-report verbose switch option\n");
+    std::cerr << "Missing argument for node-report verbose switch option\n";
     return 0;
   }
   // Parse the supplied switch
@@ -190,7 +195,7 @@ unsigned int ProcessNodeReportVerboseSwitch(const char* args) {
   } else if (!strncmp(args, "no", sizeof("no") - 1) || !strncmp(args, "false", sizeof("false") - 1)) {
     return 0;
   } else {
-    fprintf(stderr, "Unrecognised argument for node-report verbose switch option: %s\n", args);
+    std::cerr << "Unrecognised argument for node-report verbose switch option: " << args << "\n";
   }
   return 0;  // Default is verbose mode off
 }
@@ -370,13 +375,12 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
   report_active = true;
 
   // Obtain the current time and the pid (platform dependent)
+  TIME_TYPE tm_struct;
 #ifdef _WIN32
-  SYSTEMTIME tm_struct;
   GetLocalTime(&tm_struct);
   DWORD pid = GetCurrentProcessId();
 #else  // UNIX, OSX
   struct timeval time_val;
-  struct tm tm_struct;
   gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, &tm_struct);
   pid_t pid = getpid();
@@ -411,11 +415,12 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
   }
 
   // Open the report file stream for writing. Supports stdout/err, user-specified or (default) generated name
-  FILE* fp = nullptr;
+  std::ofstream outfile;
+  std::ostream* outstream = &std::cout;
   if (!strncmp(filename, "stdout", sizeof("stdout") - 1)) {
-    fp = stdout;
+    outstream = &std::cout;
   } else if (!strncmp(filename, "stderr", sizeof("stderr") - 1)) {
-    fp = stderr;
+    outstream = &std::cerr;
   } else {
     // Regular file. Append filename to directory path if one was specified
     if (strlen(report_directory) > 0) {
@@ -425,100 +430,174 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
 #else
       snprintf(pathname, sizeof(pathname), "%s%s%s", report_directory, "/", filename);
 #endif
-      fp = fopen(pathname, "w");
+      outfile.open(pathname, std::ios::out);
     } else {
-      fp = fopen(filename, "w");
+      outfile.open(filename, std::ios::out);
     }
     // Check for errors on the file open
-    if (fp == nullptr) {
+    if (!outfile.is_open()) {
       if (strlen(report_directory) > 0) {
-        fprintf(stderr, "\nFailed to open Node.js report file: %s directory: %s (errno: %d)\n", filename, report_directory, errno);
+        std::cerr << "\nFailed to open Node.js report file: " << filename << " directory: " << report_directory << " (errno: " << errno << ")\n";
       } else {
-        fprintf(stderr, "\nFailed to open Node.js report file: %s (errno: %d)\n", filename, errno);
+        std::cerr << "\nFailed to open Node.js report file: " << filename << " (errno: " << errno << ")\n";
       }
       return;
     } else {
-      fprintf(stderr, "\nWriting Node.js report to file: %s\n", filename);
+      std::cerr << "\nWriting Node.js report to file: " << filename << "\n";
     }
   }
 
-  // File stream opened OK, now start printing the report content, starting with the title
-  // and header information (event, filename, timestamp and pid)
-  fprintf(fp, "================================================================================\n");
-  fprintf(fp, "==== Node Report ===============================================================\n");
-  fprintf(fp, "\nEvent: %s, location: \"%s\"\n", message, location);
-  fprintf(fp, "Filename: %s\n", filename);
+  // Pass our stream about by reference, not by copying it.
+  std::ostream &out = outfile.is_open() ? outfile : *outstream;
 
-  // Print dump event and module load date/time stamps
-#ifdef _WIN32
-  fprintf(fp, "Dump event time:  %4d/%02d/%02d %02d:%02d:%02d\n",
-          tm_struct.wYear, tm_struct.wMonth, tm_struct.wDay,
-          tm_struct.wHour, tm_struct.wMinute, tm_struct.wSecond);
-  fprintf(fp, "Module load time: %4d/%02d/%02d %02d:%02d:%02d\n",
-          loadtime_tm_struct.wYear, loadtime_tm_struct.wMonth, loadtime_tm_struct.wDay,
-          loadtime_tm_struct.wHour, loadtime_tm_struct.wMinute, loadtime_tm_struct.wSecond);
-#else  // UNIX, OSX
-  fprintf(fp, "Dump event time:  %4d/%02d/%02d %02d:%02d:%02d\n",
-          tm_struct.tm_year+1900, tm_struct.tm_mon+1, tm_struct.tm_mday,
-          tm_struct.tm_hour, tm_struct.tm_min, tm_struct.tm_sec);
-  fprintf(fp, "Module load time: %4d/%02d/%02d %02d:%02d:%02d\n",
-          loadtime_tm_struct.tm_year+1900, loadtime_tm_struct.tm_mon+1, loadtime_tm_struct.tm_mday,
-          loadtime_tm_struct.tm_hour, loadtime_tm_struct.tm_min, loadtime_tm_struct.tm_sec);
-#endif
-  // Print native process ID
-  fprintf(fp, "Process ID: %d\n", pid);
-  fflush(fp);
+  WriteNodeReport(isolate, event, message, location, filename, out, &tm_struct);
 
-  // Print out the command line.
-  PrintCommandLine(fp);
-  fflush(fp);
+  // Do not close stdout/stderr, only close files we opened.
+  if(outfile.is_open()) {
+    outfile.close();
+  }
 
-  // Print Node.js and OS version information
-  PrintVersionInformation(fp, isolate);
-  fflush(fp);
-
-// Print summary JavaScript stack backtrace
-  PrintJavaScriptStack(fp, isolate, event, location);
-  fflush(fp);
-
-  // Print native stack backtrace
-  PrintNativeStack(fp);
-  fflush(fp);
-
-  // Print V8 Heap and Garbage Collector information
-  PrintGCStatistics(fp, isolate);
-  fflush(fp);
-
-  // Print OS and current thread resource usage
-#ifndef _WIN32
-  PrintResourceUsage(fp);
-  fflush(fp);
-#endif
-
-  // Print libuv handle summary (TODO: investigate failure on Windows)
-  // Note: documentation of the uv_print_all_handles() API says "This function
-  // is meant for ad hoc debugging, there is no API/ABI stability guarantee"
-  // http://docs.libuv.org/en/v1.x/misc.html
-#ifndef _WIN32
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== Node.js libuv Handle Summary ==============================================\n");
-  fprintf(fp, "\n(Flags: R=Ref, A=Active, I=Internal)\n");
-  fprintf(fp, "\nFlags Type     Address\n");
-  uv_print_all_handles(nullptr, fp);
-  fflush(fp);
-#endif
-
-  // Print operating system information
-  PrintSystemInformation(fp, isolate);
-
-  fprintf(fp, "\n================================================================================\n");
-  fflush(fp);
-  fclose(fp);
-
-  fprintf(stderr, "Node.js report completed\n");
+  std::cerr << "Node.js report completed\n";
   if (name != nullptr) {
     snprintf(name, NR_MAXNAME + 1, "%s", filename);  // return the report file name
   }
+
+}
+
+void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, std::ostream& out) {
+  // Obtain the current time and the pid (platform dependent)
+  TIME_TYPE tm_struct;
+#ifdef _WIN32
+  GetLocalTime(&tm_struct);
+#else  // UNIX, OSX
+  struct timeval time_val;
+  gettimeofday(&time_val, nullptr);
+  localtime_r(&time_val.tv_sec, &tm_struct);
+#endif
+  WriteNodeReport(isolate, event, message, location, nullptr, out, &tm_struct);
+}
+
+static void walkHandle(uv_handle_t* h, void* arg) {
+  std::string type;
+  std::string data = "";
+  std::ostream* out = reinterpret_cast<std::ostream*>(arg);
+  char buf[64];
+
+  // List all the types so we get a compile warning if we've missed one,
+  // (using default: supresses the compiler warning.)
+  switch (h->type) {
+    case UV_UNKNOWN_HANDLE: type = "unknown"; break;
+    case UV_ASYNC: type = "async"; break;
+    case UV_CHECK: type = "check"; break;
+    case UV_FS_EVENT: type = "fs_event"; break;
+    case UV_FS_POLL: type = "fs_poll"; break;
+    case UV_HANDLE: type = "handle"; break;
+    case UV_IDLE: type = "idle"; break;
+    case UV_NAMED_PIPE: type = "pipe"; break;
+    case UV_POLL: type = "poll"; break;
+    case UV_PREPARE: type = "prepare"; break;
+    case UV_PROCESS: type = "process"; break;
+    case UV_STREAM: type = "stream"; break;
+    case UV_TCP: type = "tcp"; break;
+    case UV_TIMER: type = "timer"; break;
+    case UV_TTY: type = "tty"; break;
+    case UV_UDP: type = "udp"; break;
+    case UV_SIGNAL: type = "signal"; break;
+    case UV_FILE: type = "file"; break;
+    // We shouldn't see "max" type
+    case UV_HANDLE_TYPE_MAX : break;
+  }
+
+  snprintf(buf, sizeof(buf),
+              "[%c%c]   %-10s0x%p\n",
+              uv_has_ref(h)?'R':'-',
+              uv_is_active(h)?'A':'-',
+              type.c_str(), (void*)h);
+
+  *out << buf;
+}
+
+static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, TIME_TYPE* tm_struct) {
+
+#ifdef _WIN32
+  DWORD pid = GetCurrentProcessId();
+#else  // UNIX, OSX
+  pid_t pid = getpid();
+#endif
+
+  // File stream opened OK, now start printing the report content, starting with the title
+  // and header information (event, filename, timestamp and pid)
+  out << "================================================================================\n";
+  out << "==== Node Report ===============================================================\n";
+  out << "\nEvent: " << message << ", location: \"" << location << "\"\n";
+  if( filename != nullptr ) {
+    out << "Filename: " << filename << "\n";
+  }
+
+  // Print dump event and module load date/time stamps
+  char timebuf[64];
+#ifdef _WIN32
+  snprintf(timebuf, sizeof(timebuf), "%4d/%02d/%02d %02d:%02d:%02d",
+          tm_struct->wYear, tm_struct->wMonth, tm_struct->wDay,
+          tm_struct->wHour, tm_struct->wMinute, tm_struct->wSecond);
+  out << "Dump event time:  "<< timebuf << "\n";
+  snprintf(timebuf, sizeof(timebuf), "%4d/%02d/%02d %02d:%02d:%02d",
+          loadtime_tm_struct.wYear, loadtime_tm_struct.wMonth, loadtime_tm_struct.wDay,
+          loadtime_tm_struct.wHour, loadtime_tm_struct.wMinute, loadtime_tm_struct.wSecond);
+  out << "Module load time: " << timebuf << "\n";
+#else  // UNIX, OSX
+  snprintf(timebuf, sizeof(timebuf), "%4d/%02d/%02d %02d:%02d:%02d",
+          tm_struct->tm_year+1900, tm_struct->tm_mon+1, tm_struct->tm_mday,
+          tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
+  out << "Dump event time:  "<< timebuf << "\n";
+      snprintf(timebuf, sizeof(timebuf), "%4d/%02d/%02d %02d:%02d:%02d",
+          loadtime_tm_struct.tm_year+1900, loadtime_tm_struct.tm_mon+1, loadtime_tm_struct.tm_mday,
+          loadtime_tm_struct.tm_hour, loadtime_tm_struct.tm_min, loadtime_tm_struct.tm_sec);
+  out << "Module load time: " << timebuf << "\n";
+#endif
+  // Print native process ID
+  out << "Process ID: " << pid << std::endl;
+
+
+  // Print out the command line.
+  PrintCommandLine(out);
+  out << std::flush;
+
+  // Print Node.js and OS version information
+  PrintVersionInformation(out);
+  out << std::flush;
+
+// Print summary JavaScript stack backtrace
+  PrintJavaScriptStack(out, isolate, event, location);
+  out << std::flush;
+
+  // Print native stack backtrace
+  PrintNativeStack(out);
+  out << std::flush;
+
+  // Print V8 Heap and Garbage Collector information
+  PrintGCStatistics(out, isolate);
+  out << std::flush;
+
+  // Print OS and current thread resource usage
+#ifndef _WIN32
+  PrintResourceUsage(out);
+  out << std::flush;
+#endif
+
+  // Print libuv handle summary
+  out << "\n================================================================================";
+  out << "\n==== Node.js libuv Handle Summary ==============================================\n";
+  out << "\n(Flags: R=Ref, A=Active)\n";
+  out << "\nFlags  Type      Address\n";
+  uv_walk(uv_default_loop(), walkHandle, (void*)&out);
+
+  // Print operating system information
+  PrintSystemInformation(out, isolate);
+
+  out << "\n================================================================================\n";
+  out << std::flush;
+
   report_active = false;
 }
 
@@ -526,9 +605,9 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
  * Function to print process command line.
  *
  ******************************************************************************/
-static void PrintCommandLine(FILE* fp) {
+static void PrintCommandLine(std::ostream& out) {
   if (commandline_string != "") {
-    fprintf(fp, "Command line: %s\n", commandline_string.c_str());
+    out << "Command line: " << commandline_string << "\n";
   }
 }
 
@@ -536,15 +615,15 @@ static void PrintCommandLine(FILE* fp) {
  * Function to print Node.js version, OS version and machine information
  *
  ******************************************************************************/
-static void PrintVersionInformation(FILE* fp, Isolate* isolate) {
+static void PrintVersionInformation(std::ostream& out) {
 
   // Print Node.js and deps component versions
-  fprintf(fp, "\n%s", version_string.c_str());
+  out << "\n" << version_string;
 
   // Print node-report module version
   // e.g. node-report version: 1.0.6 (built against Node.js v6.9.1)
-  fprintf(fp, "\nnode-report version: %s (built against Node.js v%s)\n",
-          NODEREPORT_VERSION, NODE_VERSION_STRING);
+  out << "\nnode-report version: " << NODEREPORT_VERSION
+      << " (built against Node.js v" << NODE_VERSION_STRING << ")\n";
 
   // Print operating system and machine information (Windows)
 #ifdef _WIN32
@@ -593,13 +672,13 @@ static void PrintVersionInformation(FILE* fp, Isolate* isolate) {
         default:
           os_name = (isServer ? "Windows Server" : "Windows Client");
       }
-      fprintf(fp, "\nOS version: %s\n", os_name);
+      out <<  "\nOS version: " << os_name << "\n";
 
       if (os_info->sv101_comment != NULL) {
-        fprintf(fp, "\nMachine: %ls %ls\n", os_info->sv101_name,
-                os_info->sv101_comment);
+        out << "\nMachine: " << os_info->sv101_name << " "
+            <<  os_info->sv101_comment << "\n";
       } else {
-        fprintf(fp, "\nMachine: %ls\n", os_info->sv101_name);
+        out << "\nMachine: " << os_info->sv101_name << "\n";
       }
       if (os_info != NULL) {
         NetApiBufferFree(os_info);
@@ -607,9 +686,9 @@ static void PrintVersionInformation(FILE* fp, Isolate* isolate) {
     } else {
       TCHAR machine_name[256];
       DWORD machine_name_size = 256;
-      fprintf(fp, "\nOS version: Windows\n");
+      out << "\nOS version: Windows\n";
       if (GetComputerName(machine_name, &machine_name_size)) {
-        fprintf(fp, "\nMachine: %s\n", machine_name);
+        out << "\nMachine: " << machine_name << "\n";
       }
     }
   }
@@ -617,11 +696,12 @@ static void PrintVersionInformation(FILE* fp, Isolate* isolate) {
   // Print operating system and machine information (Unix/OSX)
   struct utsname os_info;
   if (uname(&os_info) == 0) {
-    fprintf(fp, "\nOS version: %s %s %s\n", os_info.sysname, os_info.release, os_info.version);
+    out << "\nOS version: " << os_info.sysname << " " << os_info.release << " "
+        << os_info.version << "\n";
 #if defined(__GLIBC__)
-    fprintf(fp, "(glibc: %d.%d)\n", __GLIBC__, __GLIBC_MINOR__);
+    out << "(glibc: "<< __GLIBC__ << "." << __GLIBC_MINOR__ << ")\n";
 #endif
-    fprintf(fp, "\nMachine: %s %s\n", os_info.nodename, os_info.machine);
+    out <<  "\nMachine: " << os_info.nodename << " " << os_info.machine << "\n";
   }
 #endif
 }
@@ -630,35 +710,49 @@ static void PrintVersionInformation(FILE* fp, Isolate* isolate) {
  * Function to print the JavaScript stack, if available
  *
  ******************************************************************************/
-static void PrintJavaScriptStack(FILE* fp, Isolate* isolate, DumpEvent event, const char* location) {
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== JavaScript Stack Trace ====================================================\n\n");
+static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent event, const char* location) {
+  out << "\n================================================================================";
+  out << "\n==== JavaScript Stack Trace ====================================================\n\n";
 
 #ifdef _WIN32
   switch (event) {
   case kFatalError:
     // Stack trace on fatal error not supported on Windows
-    fprintf(fp, "No stack trace available\n");
+    out << "No stack trace available\n";
     break;
   default:
     // All other events, print the stack using StackTrace::StackTrace() and GetStackSample() APIs
-    PrintStackFromStackTrace(fp, isolate, event);
+    PrintStackFromStackTrace(out, isolate, event);
     break;
   }  // end switch(event)
 #else  // Unix, OSX
   switch (event) {
   case kException:
-  case kJavaScript:
+  case kJavaScript: {
     // Print the stack using Message::PrintCurrentStackTrace() API
-    Message::PrintCurrentStackTrace(isolate, fp);
+    std::FILE *stack_fp = std::tmpfile();
+    if (stack_fp != nullptr) {
+      char stack_buf[64];
+      Message::PrintCurrentStackTrace(isolate, stack_fp);
+      std::fflush(stack_fp);
+      std::rewind(stack_fp);
+      while (std::fgets(stack_buf, sizeof(stack_buf), stack_fp) != nullptr) {
+        out << stack_buf;
+      }
+      // Calling close on a file from tmpfile *should* delete it.
+      std::fclose(stack_fp);
+    } else {
+      out << "No stack trace available, unable to create temporary file\n";
+    }
     break;
+  }
   case kFatalError:
-    fprintf(fp, "No stack trace available\n");
+    out << "No stack trace available\n";
     break;
   case kSignal_JS:
   case kSignal_UV:
     // Print the stack using StackTrace::StackTrace() and GetStackSample() APIs
-    PrintStackFromStackTrace(fp, isolate, event);
+    PrintStackFromStackTrace(out, isolate, event);
     break;
   }  // end switch(event)
 #endif
@@ -668,7 +762,7 @@ static void PrintJavaScriptStack(FILE* fp, Isolate* isolate, DumpEvent event, co
  * Function to print stack using GetStackSample() and StackTrace::StackTrace()
  *
  ******************************************************************************/
-static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event) {
+static void PrintStackFromStackTrace(std::ostream& out, Isolate* isolate, DumpEvent event) {
   v8::RegisterState state;
   v8::SampleInfo info;
   void* samples[255];
@@ -680,25 +774,25 @@ static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event
 
   isolate->GetStackSample(state, samples, arraysize(samples), &info);
   if (static_cast<size_t>(info.vm_state) < arraysize(v8_states)) {
-    fprintf(fp, "JavaScript VM state: %s\n\n", v8_states[info.vm_state]);
+    out << "JavaScript VM state: " << v8_states[info.vm_state] << "\n\n";
   } else {
-    fprintf(fp, "JavaScript VM state: <unknown>\n\n");
+    out << "JavaScript VM state: <unknown>\n\n";
   }
   if (event == kSignal_UV) {
-    fprintf(fp, "Signal received when event loop idle, no stack trace available\n");
+    out << "Signal received when event loop idle, no stack trace available\n";
     return;
   }
   Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, 255, StackTrace::kDetailed);
   if (stack.IsEmpty()) {
-    fprintf(fp, "\nNo stack trace available from StackTrace::CurrentStackTrace()\n");
+    out << "\nNo stack trace available from StackTrace::CurrentStackTrace()\n";
     return;
   }
   // Print the stack trace, adding in the pc values from GetStackSample() if available
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     if (static_cast<size_t>(i) < info.frames_count) {
-      PrintStackFrame(fp, isolate, stack->GetFrame(i), i, samples[i]);
+      PrintStackFrame(out, isolate, stack->GetFrame(i), i, samples[i]);
     } else {
-      PrintStackFrame(fp, isolate, stack->GetFrame(i), i, nullptr);
+      PrintStackFrame(out, isolate, stack->GetFrame(i), i, nullptr);
     }
   }
 }
@@ -707,36 +801,42 @@ static void PrintStackFromStackTrace(FILE* fp, Isolate* isolate, DumpEvent event
  * Function to print a JavaScript stack frame from a V8 StackFrame object
  *
  ******************************************************************************/
-static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame, int i, void* pc) {
+static void PrintStackFrame(std::ostream& out, Isolate* isolate, Local<StackFrame> frame, int i, void* pc) {
   Nan::Utf8String fn_name_s(frame->GetFunctionName());
   Nan::Utf8String script_name(frame->GetScriptName());
   const int line_number = frame->GetLineNumber();
   const int column = frame->GetColumn();
+  char buf[64];
 
   // First print the frame index and the instruction address
 #ifdef _WIN32
-  fprintf(fp, "%2d: [pc=0x%p] ", i, pc);
+  snprintf( buf, sizeof(buf), "%2d: [pc=0x%p] ", i, pc);
+  out << buf;
 #else
-  fprintf(fp, "%2d: [pc=%p] ", i, pc);
+  snprintf( buf, sizeof(buf), "%2d: [pc=%p] ", i, pc);
+  out << buf;
 #endif
 
   // Now print the JavaScript function name and source information
   if (frame->IsEval()) {
     if (frame->GetScriptId() == Message::kNoScriptIdInfo) {
-      fprintf(fp, "at [eval]:%i:%i\n", line_number, column);
+      out << "at [eval]:" << line_number << ":" << column << "\n";
     } else {
-      fprintf(fp, "at [eval] (%s:%i:%i)\n", *script_name, line_number, column);
+      out << "at [eval] (" << *script_name << ":" << line_number << ":"
+          << column << ")\n";
     }
     return;
   }
 
   if (fn_name_s.length() == 0) {
-    fprintf(fp, "%s:%i:%i\n", *script_name, line_number, column);
+    out << *script_name << ":" << line_number << ":" << column << "\n";
   } else {
     if (frame->IsConstructor()) {
-      fprintf(fp, "%s [constructor] (%s:%i:%i)\n", *fn_name_s, *script_name, line_number, column);
+      out << *fn_name_s << " [constructor] (" << *script_name << ":"
+          << line_number << ":" << column << ")\n";
     } else {
-      fprintf(fp, "%s (%s:%i:%i)\n", *fn_name_s, *script_name, line_number, column);
+      out << *fn_name_s << " (" << *script_name << ":" << line_number << ":"
+          << column << ")\n";
     }
   }
 }
@@ -747,14 +847,15 @@ static void PrintStackFrame(FILE* fp, Isolate* isolate, Local<StackFrame> frame,
  * Function to print a native stack backtrace
  *
  ******************************************************************************/
-void PrintNativeStack(FILE* fp) {
+void PrintNativeStack(std::ostream& out) {
   void* frames[64];
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== Native Stack Trace ========================================================\n\n");
+  out << "\n================================================================================";
+  out << "\n==== Native Stack Trace ========================================================\n\n";
 
   HANDLE hProcess = GetCurrentProcess();
   SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
   SymInitialize(hProcess, nullptr, TRUE);
+  char buf[64];
 
   WORD numberOfFrames = CaptureStackBackTrace(2, 64, frames, nullptr);
 
@@ -771,17 +872,16 @@ void PrintNativeStack(FILE* fp) {
       DWORD dwOffset = 0;
       IMAGEHLP_LINE64 line;
       line.SizeOfStruct = sizeof(line);
+      snprintf(buf, sizeof(buf), "%2d: [pc=0x%p]", i, reinterpret_cast<void*>(pSymbol->Address));
+      out << buf << " " << pSymbol->Name << " [+";
       if (SymGetLineFromAddr64(hProcess, dwAddress, &dwOffset, &line)) {
-        fprintf(fp, "%2d: [pc=0x%p] %s [+%d] in %s: line: %lu\n", i,
-          reinterpret_cast<void*>(pSymbol->Address), pSymbol->Name,
-          dwOffset, line.FileName, line.LineNumber);
+        out <<  dwOffset << "] in " << line.FileName << ": line: " << line.LineNumber << "\n";
       } else {
-        fprintf(fp, "%2d: [pc=0x%p] %s [+%lld]\n", i,
-          reinterpret_cast<void*>(pSymbol->Address), pSymbol->Name,
-          dwOffset64);
+        out << dwOffset64 << "]\n";
       }
     } else { // SymFromAddr() failed, just print the address
-      fprintf(fp, "%2d: [pc=0x%p]\n", i, reinterpret_cast<void*>(dwAddress));
+      snprintf(buf, sizeof(buf), "%2d: [pc=0x%p]\n", i, reinterpret_cast<void*>(dwAddress));
+      out << buf;
     }
   }
 }
@@ -790,28 +890,29 @@ void PrintNativeStack(FILE* fp) {
  * Function to print a native stack backtrace - AIX
  *
  ******************************************************************************/
-void PrintNativeStack(FILE* fp) {
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== Native Stack Trace ========================================================\n\n");
-  fprintf(fp, "Native stack trace not supported on AIX\n");
+void PrintNativeStack(std::ostream& out) {
+  out << "\n================================================================================";
+  out << "\n==== Native Stack Trace ========================================================\n\n";
+  out << "Native stack trace not supported on AIX\n";
 }
 #else
 /*******************************************************************************
  * Function to print a native stack backtrace - Linux/OSX
  *
  ******************************************************************************/
-void PrintNativeStack(FILE* fp) {
+void PrintNativeStack(std::ostream& out) {
   void* frames[256];
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== Native Stack Trace ========================================================\n\n");
+  char buf[64];
+  out << "\n================================================================================";
+  out << "\n==== Native Stack Trace ========================================================\n\n";
 
   // Get the native backtrace (array of instruction addresses)
   const int size = backtrace(frames, arraysize(frames));
   if (size <= 0) {
-    fprintf(fp, "Native backtrace failed, error %d\n", size);
+    out << "Native backtrace failed, error " << size << "\n";
     return;
   } else if (size <=2) {
-    fprintf(fp, "No frames to print\n");
+    out << "No frames to print\n";
     return;
   }
 
@@ -819,23 +920,24 @@ void PrintNativeStack(FILE* fp) {
   // backtrace_symbols_fd(frames, size, fileno(fp));
   for (int i = 2; i < size; i++) {
     // print frame index and instruction address
-    fprintf(fp, "%2d: [pc=%p] ", i-2, frames[i]);
+    snprintf(buf, sizeof(buf), "%2d: [pc=%p] ", i-2, frames[i]);
+    out << buf;
     // If we can translate the address using dladdr() print additional symbolic information
     Dl_info info;
     if (dladdr(frames[i], &info)) {
       if (info.dli_sname != nullptr) {
         if (char* demangled = abi::__cxa_demangle(info.dli_sname, 0, 0, 0)) {
-          fprintf(fp, "%s", demangled); // print demangled symbol name
+          out << demangled; // print demangled symbol name
           free(demangled);
         } else {
-          fprintf(fp, "%s", info.dli_sname); // just print the symbol name
+          out << info.dli_sname; // just print the symbol name
         }
       }
       if (info.dli_fname != nullptr) {
-        fprintf(fp, " [%s]", info.dli_fname); // print shared object name
+        out << " [" << info.dli_fname << "]"; // print shared object name
       }
     }
-    fprintf(fp, "\n");
+    out << std::endl;
   }
 }
 #endif
@@ -847,42 +949,42 @@ void PrintNativeStack(FILE* fp) {
  * The isolate->GetGCStatistics(&heap_stats) internal V8 API could potentially
  * provide some more useful information - the GC history and the handle counts
  ******************************************************************************/
-static void PrintGCStatistics(FILE* fp, Isolate* isolate) {
+static void PrintGCStatistics(std::ostream& out, Isolate* isolate) {
   HeapStatistics v8_heap_stats;
   isolate->GetHeapStatistics(&v8_heap_stats);
 
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== JavaScript Heap and Garbage Collector =====================================\n");
+  out << "\n================================================================================";
+  out << "\n==== JavaScript Heap and Garbage Collector =====================================\n";
   HeapSpaceStatistics v8_heap_space_stats;
   // Loop through heap spaces
   for (size_t i = 0; i < isolate->NumberOfHeapSpaces(); i++) {
     isolate->GetHeapSpaceStatistics(&v8_heap_space_stats, i);
-    fprintf(fp, "\nHeap space name: %s", v8_heap_space_stats.space_name());
-    fprintf(fp, "\n    Memory size: ");
-    WriteInteger(fp, v8_heap_space_stats.space_size());
-    fprintf(fp, " bytes, committed memory: ");
-    WriteInteger(fp, v8_heap_space_stats.physical_space_size());
-    fprintf(fp, " bytes\n    Capacity: ");
-    WriteInteger(fp, v8_heap_space_stats.space_used_size() +
+    out << "\nHeap space name: " << v8_heap_space_stats.space_name();
+    out << "\n    Memory size: ";
+    WriteInteger(out, v8_heap_space_stats.space_size());
+    out << " bytes, committed memory: ";
+    WriteInteger(out, v8_heap_space_stats.physical_space_size());
+    out << " bytes\n    Capacity: ";
+    WriteInteger(out, v8_heap_space_stats.space_used_size() +
                            v8_heap_space_stats.space_available_size());
-    fprintf(fp, " bytes, used: ");
-    WriteInteger(fp, v8_heap_space_stats.space_used_size());
-    fprintf(fp, " bytes, available: ");
-    WriteInteger(fp, v8_heap_space_stats.space_available_size());
-    fprintf(fp, " bytes");
+    out << " bytes, used: ";
+    WriteInteger(out, v8_heap_space_stats.space_used_size());
+    out << " bytes, available: ";
+    WriteInteger(out, v8_heap_space_stats.space_available_size());
+    out << " bytes";
   }
 
-  fprintf(fp, "\n\nTotal heap memory size: ");
-  WriteInteger(fp, v8_heap_stats.total_heap_size());
-  fprintf(fp, " bytes\nTotal heap committed memory: ");
-  WriteInteger(fp, v8_heap_stats.total_physical_size());
-  fprintf(fp, " bytes\nTotal used heap memory: ");
-  WriteInteger(fp, v8_heap_stats.used_heap_size());
-  fprintf(fp, " bytes\nTotal available heap memory: ");
-  WriteInteger(fp, v8_heap_stats.total_available_size());
-  fprintf(fp, " bytes\n\nHeap memory limit: ");
-  WriteInteger(fp, v8_heap_stats.heap_size_limit());
-  fprintf(fp, "\n");
+  out << "\n\nTotal heap memory size: ";
+  WriteInteger(out, v8_heap_stats.total_heap_size());
+  out << " bytes\nTotal heap committed memory: ";
+  WriteInteger(out, v8_heap_stats.total_physical_size());
+  out << " bytes\nTotal used heap memory: ";
+  WriteInteger(out, v8_heap_stats.used_heap_size());
+  out << " bytes\nTotal available heap memory: ";
+  WriteInteger(out, v8_heap_stats.total_available_size());
+  out << " bytes\n\nHeap memory limit: ";
+  WriteInteger(out, v8_heap_stats.heap_size_limit());
+  out << "\n";
 }
 
 #ifndef _WIN32
@@ -890,40 +992,52 @@ static void PrintGCStatistics(FILE* fp, Isolate* isolate) {
  * Function to print resource usage (Linux/OSX only).
  *
  ******************************************************************************/
-static void PrintResourceUsage(FILE* fp) {
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== Resource Usage ============================================================\n");
+static void PrintResourceUsage(std::ostream& out) {
+  char buf[64];
+  out << "\n================================================================================";
+  out << "\n==== Resource Usage ============================================================\n";
 
   // Process and current thread usage statistics
   struct rusage stats;
-  fprintf(fp, "\nProcess total resource usage:");
+  out << "\nProcess total resource usage:";
   if (getrusage(RUSAGE_SELF, &stats) == 0) {
 #if defined(__APPLE__) || defined(_AIX)
-    fprintf(fp, "\n  User mode CPU: %ld.%06d secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
-    fprintf(fp, "\n  Kernel mode CPU: %ld.%06d secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    snprintf( buf, sizeof(buf), "%ld.%06d", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    out << "\n  User mode CPU: " << buf << " secs";
+    snprintf( buf, sizeof(buf), "%ld.%06d", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    out << "\n  Kernel mode CPU: " << buf << " secs";
 #else
-    fprintf(fp, "\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
-    fprintf(fp, "\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    snprintf( buf, sizeof(buf), "%ld.%06ld", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    out << "\n  User mode CPU: " << buf << " secs";
+    snprintf( buf, sizeof(buf), "%ld.%06ld", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    out << "\n  Kernel mode CPU: " << buf << " secs";
 #endif
-    fprintf(fp, "\n  Maximum resident set size: ");
-    WriteInteger(fp, stats.ru_maxrss * 1024);
-    fprintf(fp, " bytes\n  Page faults: %ld (I/O required) %ld (no I/O required)", stats.ru_majflt, stats.ru_minflt);
-    fprintf(fp, "\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
+    out << "\n  Maximum resident set size: ";
+    WriteInteger(out, stats.ru_maxrss * 1024);
+    out << " bytes\n  Page faults: " << stats.ru_majflt << " (I/O required) "
+        << stats.ru_minflt << " (no I/O required)";
+    out << "\n  Filesystem activity: " << stats.ru_inblock << " reads "
+        <<  stats.ru_oublock << " writes";
   }
 #ifdef RUSAGE_THREAD
-  fprintf(fp, "\n\nEvent loop thread resource usage:");
+  out << "\n\nEvent loop thread resource usage:";
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
 #if defined(__APPLE__) || defined(_AIX)
-    fprintf(fp, "\n  User mode CPU: %ld.%06d secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
-    fprintf(fp, "\n  Kernel mode CPU: %ld.%06d secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    snprintf( buf, sizeof(buf), "%ld.%06d", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    out << "\n  User mode CPU: " << buf << " secs";
+    snprintf( buf, sizeof(buf), "%ld.%06d", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    out << "\n  Kernel mode CPU: " << buf << " secs";
 #else
-    fprintf(fp, "\n  User mode CPU: %ld.%06ld secs", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
-    fprintf(fp, "\n  Kernel mode CPU: %ld.%06ld secs", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    snprintf( buf, sizeof(buf), "%ld.%06ld", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
+    out << "\n  User mode CPU: " << buf << " secs";
+    snprintf( buf, sizeof(buf), "%ld.%06ld", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
+    out << "\n  Kernel mode CPU: " << buf << " secs";
 #endif
-    fprintf(fp, "\n  Filesystem activity: %ld reads %ld writes", stats.ru_inblock, stats.ru_oublock);
+    out << "\n  Filesystem activity: " << stats.ru_inblock << " reads "
+        << stats.ru_oublock << " writes";
   }
 #endif
-  fprintf(fp, "\n");
+  out << std::endl;
 }
 #endif
 
@@ -931,12 +1045,12 @@ static void PrintResourceUsage(FILE* fp) {
  * Function to print operating system information.
  *
  ******************************************************************************/
-static void PrintSystemInformation(FILE* fp, Isolate* isolate) {
-  fprintf(fp, "\n================================================================================");
-  fprintf(fp, "\n==== System Information ========================================================\n");
+static void PrintSystemInformation(std::ostream& out, Isolate* isolate) {
+  out << "\n================================================================================";
+  out << "\n==== System Information ========================================================\n";
 
 #ifdef _WIN32
-  fprintf(fp, "\nEnvironment variables\n");
+  out << "\nEnvironment variables\n";
   LPTSTR lpszVariable;
   LPTCH lpvEnv;
 
@@ -946,18 +1060,18 @@ static void PrintSystemInformation(FILE* fp, Isolate* isolate) {
     // Variable strings are separated by null bytes, and the block is terminated by a null byte.
     lpszVariable = reinterpret_cast<LPTSTR>(lpvEnv);
     while (*lpszVariable) {
-      fprintf(fp, "  %s\n", lpszVariable);
+      out << "  " << lpszVariable << "\n", lpszVariable;
       lpszVariable += lstrlen(lpszVariable) + 1;
     }
     FreeEnvironmentStrings(lpvEnv);
   }
 #else
-  fprintf(fp, "\nEnvironment variables\n");
+  out << "\nEnvironment variables\n";
   int index = 1;
   char* env_var = *environ;
 
   while (env_var != nullptr) {
-    fprintf(fp, "  %s\n", env_var);
+    out << "  " << env_var << "\n";
     env_var = *(environ + index++);
   }
 
@@ -979,36 +1093,41 @@ const static struct {
   {"virtual memory (kbytes)       ", RLIMIT_AS}
 };
 
-  fprintf(fp, "\nResource limits                        soft limit      hard limit\n");
+  out << "\nResource limits                        soft limit      hard limit\n";
   struct rlimit limit;
+  char buf[64];
 
   for (size_t i = 0; i < arraysize(rlimit_strings); i++) {
     if (getrlimit(rlimit_strings[i].id, &limit) == 0) {
-      fprintf(fp, "  %s ", rlimit_strings[i].description);
+      out << "  " << rlimit_strings[i].description << " ";
       if (limit.rlim_cur == RLIM_INFINITY) {
-        fprintf(fp, "       unlimited");
+        out << "       unlimited";
       } else {
 #ifdef _AIX
-        fprintf(fp, "%16ld", limit.rlim_cur);
+        snprintf(buf, sizeof(buf), "%16ld", limit.rlim_cur);
+        out << buf;
 #else
-        fprintf(fp, "%16" PRIu64, limit.rlim_cur);
+        snprintf(buf, sizeof(buf), "%16" PRIu64, limit.rlim_cur);
+        out << buf;
 #endif
       }
       if (limit.rlim_max == RLIM_INFINITY) {
-        fprintf(fp, "       unlimited\n");
+        out << "       unlimited\n";
       } else {
 #ifdef _AIX
-        fprintf(fp, "%16ld\n", limit.rlim_max);
+        snprintf(buf, sizeof(buf), "%16ld\n", limit.rlim_max);
+        out << buf;
 #else
-        fprintf(fp, "%16" PRIu64 "\n", limit.rlim_max);
+        snprintf(buf, sizeof(buf), "%16" PRIu64 "\n", limit.rlim_max);
+        out << buf;
 #endif
       }
     }
   }
 #endif
 
-  fprintf(fp, "\nLoaded libraries\n");
-  PrintLoadedLibraries(fp, isolate);
+  out << "\nLoaded libraries\n";
+  PrintLoadedLibraries(out, isolate);
 }
 
 /*******************************************************************************
@@ -1017,22 +1136,22 @@ const static struct {
  ******************************************************************************/
 #ifdef __linux__
 static int LibraryPrintCallback(struct dl_phdr_info *info, size_t size, void *data) {
-  FILE* fp = (FILE*)data;
+  std::ostream* out = reinterpret_cast<std::ostream*>(data);
   if (info->dlpi_name != nullptr && *info->dlpi_name != '\0') {
-    fprintf(fp, "  %s\n", info->dlpi_name);
+    *out << "  " << info->dlpi_name << "\n";
   }
   return 0;
 }
 #endif
 
-static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
+static void PrintLoadedLibraries(std::ostream& out, Isolate* isolate) {
 #ifdef __linux__
-  dl_iterate_phdr(LibraryPrintCallback, fp);
+  dl_iterate_phdr(LibraryPrintCallback, &out);
 #elif __APPLE__
   int i = 0;
   const char *name = _dyld_get_image_name(i);
   while (name != nullptr) {
-    fprintf(fp, "  %s\n", name);
+    out << "  " << name << "\n";
     i++;
     name = _dyld_get_image_name(i);
   }
@@ -1063,9 +1182,9 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
       char* member_name = cur_info->ldinfo_filename
         + strlen(cur_info->ldinfo_filename) + 1;
       if (*member_name != '\0') {
-        fprintf(fp, "  %s(%s)\n", cur_info->ldinfo_filename, member_name);
+        out << "  " << cur_info->ldinfo_filename << "(" << member_name << ")\n";
       } else {
-        fprintf(fp, "  %s\n", cur_info->ldinfo_filename);
+        out << "  " << cur_info->ldinfo_filename << "\n";
       }
       buf += cur_info->ldinfo_next;
     } while (cur_info->ldinfo_next != 0);
@@ -1077,7 +1196,7 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
   HANDLE process_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
                                       FALSE, GetCurrentProcessId());
   if (process_handle == NULL) {
-    fprintf(fp, "No library information available\n");
+    out << "No library information available\n";
     return;
   }
   // Get a list of all the modules in this process
@@ -1097,13 +1216,13 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
         // Obtain and print the full pathname for each module
         if (GetModuleFileNameEx(process_handle, modules[i], module_name,
                                 sizeof(module_name) / sizeof(TCHAR))) {
-          fprintf(fp,"  %s\n", module_name);
+          out << "  " << module_name << "\n";
         }
       }
     }
     free(modules);
   } else {
-    fprintf(fp, "No library information available\n");
+    out << "No library information available\n";
   }
   // Release the handle to the process.
   CloseHandle(process_handle);
@@ -1114,10 +1233,11 @@ static void PrintLoadedLibraries(FILE* fp, Isolate* isolate) {
  * Utility function to print out integer values with commas for readability.
  *
  ******************************************************************************/
-static void WriteInteger(FILE* fp, size_t value) {
+static void WriteInteger(std::ostream& out, size_t value) {
   int thousandsStack[8];  // Sufficient for max 64-bit number
   int stackTop = 0;
   int i;
+  char buf[64];
   size_t workingValue = value;
 
   do {
@@ -1127,12 +1247,13 @@ static void WriteInteger(FILE* fp, size_t value) {
 
   for (i = stackTop-1; i >= 0; i--) {
     if (i == (stackTop-1)) {
-      fprintf(fp, "%u", thousandsStack[i]);
+      out << thousandsStack[i];
     } else {
-      fprintf(fp, "%03u", thousandsStack[i]);
+      snprintf(buf, sizeof(buf), "%03u", thousandsStack[i]);
+      out << buf;
     }
     if (i > 0) {
-       fprintf(fp, ",");
+      out << ",";
     }
   }
 }

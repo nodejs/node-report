@@ -28,6 +28,14 @@ application.
 var nodereport = require('node-report');
 nodereport.triggerReport();
 ```
+The content of a report can also be returned as a JavaScript string via an
+API call from a JavaScript application.
+
+```js
+var nodereport = require('nodereport');
+var report_str = nodereport.getReport();
+console.log(report_str);
+```
 The API can be used without adding the automatic exception and fatal error
 hooks and the signal handler, as follows:
 
