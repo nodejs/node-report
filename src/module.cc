@@ -78,7 +78,7 @@ NAN_METHOD(GetReport) {
   std::ostringstream out;
 
   GetNodeReport(isolate, kJavaScript, "JavaScript API", __func__, out);
-  // Return value is the contents of a NodeReport as a string.
+  // Return value is the contents of a report as a string.
   info.GetReturnValue().Set(Nan::New(out.str()).ToLocalChecked());
 }
 

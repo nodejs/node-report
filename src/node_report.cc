@@ -459,7 +459,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
 
   std::cerr << "Node.js report completed\n";
   if (name != nullptr) {
-    snprintf(name, NR_MAXNAME + 1, "%s", filename);  // return the NodeReport file name
+    snprintf(name, NR_MAXNAME + 1, "%s", filename);  // return the report file name
   }
 
 }
@@ -525,7 +525,7 @@ static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* messa
   pid_t pid = getpid();
 #endif
 
-  // File stream opened OK, now start printing the NodeReport content, starting with the title
+  // File stream opened OK, now start printing the report content, starting with the title
   // and header information (event, filename, timestamp and pid)
   out << "================================================================================\n";
   out << "==== Node Report ===============================================================\n";

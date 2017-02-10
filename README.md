@@ -28,7 +28,7 @@ application.
 var nodereport = require('node-report');
 nodereport.triggerReport();
 ```
-The content of a NodeReport can also be returned as a JavaScript string via an
+The content of a report can also be returned as a JavaScript string via an
 API call from a JavaScript application.
 
 ```js
