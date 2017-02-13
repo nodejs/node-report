@@ -1,3 +1,9 @@
+2017-02-13, Version 2.1.0
+=========================
+
+ * Provide getReport API to return the contents of node-report. (Howard Hellyer)
+
+
 2017-02-09, Version 2.0.0
 =========================
 
