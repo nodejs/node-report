@@ -674,16 +674,23 @@ static void PrintVersionInformation(std::ostream& out) {
       }
       out <<  "\nOS version: " << os_name << "\n";
 
+      // Convert and print the machine name and comment fields (these are LPWSTR types)
+      size_t count;
+      char name_buf[256];
+      wcstombs_s(&count, name_buf, sizeof(name_buf), os_info->sv101_name, _TRUNCATE);
       if (os_info->sv101_comment != NULL) {
-        out << "\nMachine: " << os_info->sv101_name << " "
-            <<  os_info->sv101_comment << "\n";
+        char comment_buf[256];
+        wcstombs_s(&count, comment_buf, sizeof(comment_buf), os_info->sv101_comment, _TRUNCATE);
+        out << "\nMachine: " << name_buf << " " << comment_buf << "\n";
       } else {
-        out << "\nMachine: " << os_info->sv101_name << "\n";
+        out << "\nMachine: " << name_buf << "\n";
       }
+
       if (os_info != NULL) {
         NetApiBufferFree(os_info);
       }
     } else {
+      // NetServerGetInfo() call failed, fallback to use GetComputerName() instead
       TCHAR machine_name[256];
       DWORD machine_name_size = 256;
       out << "\nOS version: Windows\n";
