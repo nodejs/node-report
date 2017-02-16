@@ -44,7 +44,7 @@ exports.validateContent = function validateContent(data, t, options) {
   const expectedVersions = options ?
                            options.expectedVersions || nodeComponents :
                            nodeComponents;
-  var plan = REPORT_SECTIONS.length + nodeComponents.length + 3;
+  var plan = REPORT_SECTIONS.length + nodeComponents.length + 4;
   if (options.commandline) plan++;
   t.plan(plan);
   // Check all sections are present
@@ -96,6 +96,22 @@ exports.validateContent = function validateContent(data, t, options) {
   t.match(nodeReportSection,
           new RegExp('node-report version: ' + nodereportMetadata.version),
           'Node Report header section contains expected Node Report version');
+  const os = require('os');
+  if (this.isWindows()) {
+    t.match(nodeReportSection,
+            new RegExp('Machine: ' + os.hostname(), 'i'), // ignore case on Windows
+            'Checking machine name in report header section contains os.hostname()');
+  } else if (this.isAIX()) {
+    t.match(nodeReportSection,
+            new RegExp('Machine: ' + os.hostname().split('.')[0]), // truncate on AIX
+            'Checking machine name in report header section contains os.hostname()');
+  } else {
+    t.match(nodeReportSection,
+            new RegExp('Machine: ' + os.hostname()),
+            'Checking machine name in report header section contains os.hostname()');
+  }
+
+  // Check report System Information section
   const sysInfoSection = getSection(reportContents, 'System Information');
   // Find a line which ends with "/api.node" or "\api.node" (Unix or
   // Windows paths) to see if the library for node report was loaded.
