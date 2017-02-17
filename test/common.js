@@ -27,6 +27,10 @@ exports.isPPC = () => {
   return process.arch.startsWith('ppc');
 };
 
+exports.isSunOS = () => {
+  return process.platform === 'sunos';
+};
+
 exports.isWindows = () => {
   return process.platform === 'win32';
 };
