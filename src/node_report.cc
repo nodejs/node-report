@@ -31,14 +31,18 @@
 #include <inttypes.h>
 #include <cxxabi.h>
 #include <dlfcn.h>
-#ifdef __linux__
+#if defined(__linux__) || defined(__sun)
 #include <link.h>
+#endif
+#ifdef __sun
+#include <procfs.h>
+#endif
+#ifdef _AIX
+#include <sys/ldr.h>
+#include <sys/procfs.h>
 #endif
 #ifndef _AIX
 #include <execinfo.h>
-#else
-#include <sys/ldr.h>
-#include <sys/procfs.h>
 #endif
 #include <sys/utsname.h>
 #endif
@@ -334,7 +338,7 @@ void SetCommandLine() {
     commandline_string += separator + argv[i];
     separator = " ";
   }
-#elif _AIX
+#elif defined(_AIX) || defined(__sun)
   // Read the command line from /proc/self/cmdline
   char procbuf[64];
   snprintf(procbuf, sizeof(procbuf), "/proc/%d/psinfo", getpid());
@@ -348,8 +352,12 @@ void SetCommandLine() {
   if (bytesread == sizeof(psinfo_t)) {
     commandline_string = "";
     std::string separator = "";
+#ifdef _AIX
     char **argv = *((char ***) info.pr_argv);
-    for (uint32_t i = 0; i < info.pr_argc; i++) {
+#else
+    char **argv = ((char **) info.pr_argv);
+#endif
+    for (auto i = 0; i < info.pr_argc && argv[i] != nullptr; i++) {
       commandline_string += separator + argv[i];
       separator = " ";
     }
@@ -702,7 +710,7 @@ static void PrintVersionInformation(std::ostream& out) {
 #else
   // Print operating system and machine information (Unix/OSX)
   struct utsname os_info;
-  if (uname(&os_info) == 0) {
+  if (uname(&os_info) >= 0) {
 #if defined(_AIX)
     out << "\nOS version: " << os_info.sysname << " " << os_info.version << "."
         << os_info.release << "\n";
@@ -1094,14 +1102,18 @@ const static struct {
   {"core file size (blocks)       ", RLIMIT_CORE},
   {"data seg size (kbytes)        ", RLIMIT_DATA},
   {"file size (blocks)            ", RLIMIT_FSIZE},
-#ifndef _AIX
+#if !(defined(_AIX) || defined(__sun))
   {"max locked memory (bytes)     ", RLIMIT_MEMLOCK},
 #endif
+#ifndef __sun
   {"max memory size (kbytes)      ", RLIMIT_RSS},
+#endif
   {"open files                    ", RLIMIT_NOFILE},
   {"stack size (bytes)            ", RLIMIT_STACK},
   {"cpu time (seconds)            ", RLIMIT_CPU},
+#ifndef __sun
   {"max user processes            ", RLIMIT_NPROC},
+#endif
   {"virtual memory (kbytes)       ", RLIMIT_AS}
 };
 
@@ -1115,7 +1127,7 @@ const static struct {
       if (limit.rlim_cur == RLIM_INFINITY) {
         out << "       unlimited";
       } else {
-#ifdef _AIX
+#if defined(_AIX) || defined(__sun)
         snprintf(buf, sizeof(buf), "%16ld", limit.rlim_cur);
         out << buf;
 #else
@@ -1202,6 +1214,14 @@ static void PrintLoadedLibraries(std::ostream& out, Isolate* isolate) {
     } while (cur_info->ldinfo_next != 0);
   }
   free(buffer);
+#elif __sun
+  Link_map *p;
+
+  if (dlinfo(RTLD_SELF, RTLD_DI_LINKMAP, &p) != -1) {
+    for (Link_map *l = p; l != NULL; l = l->l_next) {
+      out << "  " << l->l_name << "\n";
+    }
+  }
 
 #elif _WIN32
   // Windows implementation - get a handle to the process.

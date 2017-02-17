@@ -5,9 +5,6 @@
 #ifndef _WIN32
 #include <unistd.h>
 #include <sys/types.h>
-#if !defined(__APPLE__) && !defined(_AIX)
-#include <features.h>
-#endif
 #endif
 
 namespace nodereport {

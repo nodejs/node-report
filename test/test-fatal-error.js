@@ -31,7 +31,7 @@ if (process.argv[2] === 'child') {
     const options = {pid: child.pid};
     // Node.js currently overwrites the command line on AIX
     // https://github.com/nodejs/node/issues/10607
-    if (!common.isAIX()) {
+    if (!(common.isAIX() || common.isSunOS())) {
       options.commandline = child.spawnargs.join(' ');
     }
     common.validate(tap, report, options);
