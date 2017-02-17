@@ -25,6 +25,8 @@ if (common.isWindows()) {
   tap.match(version_str,
             new RegExp('OS version: ' + os_name + ' \\d+.' + os.release()),
             'Checking OS version');
+} else if (common.isSunOS()) {
+  //skip, uname call returns file not found on SunOS
 } else {
   tap.match(version_str,
             new RegExp('OS version: ' + os_name + ' .*' + os.release()),
