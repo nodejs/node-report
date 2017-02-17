@@ -1,6 +1,15 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
+
+const osMap = {
+  'aix': 'AIX',
+  'darwin': 'Darwin',
+  'linux': 'Linux',
+  'sunos': 'SunOS',
+  'win32': 'Windows',
+};
 
 const REPORT_SECTIONS = [
   'Node Report',
@@ -48,7 +57,7 @@ exports.validateContent = function validateContent(data, t, options) {
   const expectedVersions = options ?
                            options.expectedVersions || nodeComponents :
                            nodeComponents;
-  var plan = REPORT_SECTIONS.length + nodeComponents.length + 4;
+  var plan = REPORT_SECTIONS.length + nodeComponents.length + 5;
   if (options.commandline) plan++;
   t.plan(plan);
   // Check all sections are present
@@ -113,6 +122,23 @@ exports.validateContent = function validateContent(data, t, options) {
     t.match(nodeReportSection,
             new RegExp('Machine: ' + os.hostname()),
             'Checking machine name in report header section contains os.hostname()');
+  }
+
+  const osName = osMap[os.platform()];
+  const osVersion = nodeReportSection.match(/OS version: .*(?:\r*\n)/);
+  if (this.isWindows()) {
+    t.match(osVersion,
+            new RegExp('OS version: ' + osName), 'Checking OS version');
+  } else if (this.isAIX() && !os.release().includes('.')) {
+    // For Node.js prior to os.release() fix for AIX:
+    // https://github.com/nodejs/node/pull/10245
+    t.match(osVersion,
+            new RegExp('OS version: ' + osName + ' \\d+.' + os.release()),
+            'Checking OS version');
+  } else {
+    t.match(osVersion,
+            new RegExp('OS version: ' + osName + ' .*' + os.release()),
+            'Checking OS version');
   }
 
   // Check report System Information section
