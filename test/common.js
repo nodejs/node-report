@@ -101,7 +101,7 @@ exports.validateContent = function validateContent(data, t, options) {
     t.match(nodeReportSection,
             new RegExp('Machine: ' + os.hostname(), 'i'), // ignore case on Windows
             'Checking machine name in report header section contains os.hostname()');
-  } else if (this.AIX()) {
+  } else if (this.isAIX()) {
     t.match(nodeReportSection,
             new RegExp('Machine: ' + os.hostname().split('.')[0]), // truncate on AIX
             'Checking machine name in report header section contains os.hostname()');
