@@ -97,10 +97,20 @@ exports.validateContent = function validateContent(data, t, options) {
           new RegExp('node-report version: ' + nodereportMetadata.version),
           'Node Report header section contains expected Node Report version');
   const os = require('os');
-  t.match(nodeReportSection,
-          new RegExp('Machine: ' + os.hostname()),
-          'Checking machine name in report header section contains os.hostname()');
-
+  if (this.isWindows()) {
+    t.match(nodeReportSection,
+            new RegExp('Machine: ' + os.hostname(), 'i'), // ignore case on Windows
+            'Checking machine name in report header section contains os.hostname()');
+  } else if (this.AIX()) {
+    t.match(nodeReportSection,
+            new RegExp('Machine: ' + os.hostname().split('.')[0]), // truncate on AIX
+            'Checking machine name in report header section contains os.hostname()');
+  } else {
+    t.match(nodeReportSection,
+            new RegExp('Machine: ' + os.hostname()),
+            'Checking machine name in report header section contains os.hostname()');
+  }
+  
   // Check report System Information section
   const sysInfoSection = getSection(reportContents, 'System Information');
   // Find a line which ends with "/api.node" or "\api.node" (Unix or
