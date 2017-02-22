@@ -12,6 +12,7 @@ const os_map = {
   'darwin': 'Darwin',
   'linux': 'Linux',
   'win32': 'Windows',
+  'sunos': 'SunOS',
 };
 const os_name = os_map[os.platform()];
 const report_str = nodereport.getReport();
