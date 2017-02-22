@@ -1,3 +1,13 @@
+2017-02-22, Version 2.1.1
+=========================
+
+ * windows: fix reporting of machine name (Richard Chamberlain)
+
+ * test: fix test-api-getreport.js (Richard Lau)
+
+ * aix: improve readability of os version (Richard Lau)
+
+
 2017-02-13, Version 2.1.0
 =========================
 
