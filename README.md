@@ -9,7 +9,7 @@ platform information and resource usage etc. With the report enabled,
 reports can be triggered on unhandled exceptions, fatal errors, signals
 and calls to a JavaScript API.
 
-Supports Node.js v4, v6 and v7 on Linux, MacOS, Windows and AIX.
+Supports Node.js v4, v6 and v7 on AIX, Linux, MacOS, SmartOS and Windows.
 
 ## Usage
 
@@ -19,7 +19,7 @@ node -r node-report app.js
 ```
 A report will be triggered automatically on unhandled exceptions and fatal
 error events (for example out of memory errors), and can also be triggered
-by sending a USR2 signal to a Node.js process (AIX/Linux/MacOS only).
+by sending a USR2 signal to a Node.js process (not supported on Windows).
 
 A report can also be triggered via an API call from a JavaScript
 application.
