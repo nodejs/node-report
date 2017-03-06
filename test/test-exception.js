@@ -24,13 +24,7 @@ if (process.argv[2] === 'child') {
   });
   child.on('exit', (code) => {
     tap.plan(4);
-    // Verify exit code. Note that behaviour changed in V8 v5.4
-    const v8_version = (process.versions.v8).match(/\d+/g);
-    if (v8_version[0] < 5 || (v8_version[0] == 5 && v8_version[1] < 4)) {
-      tap.equal(code, 0, 'Check for expected process exit code');
-    } else {
-      tap.equal(code, 1, 'Check for expected process exit code');
-    }
+    tap.equal(code, 1, 'Check for expected process exit code');
     tap.match(stderr, /myException/,
               'Check for expected stack trace frame in stderr');
     const reports = common.findReports(child.pid);

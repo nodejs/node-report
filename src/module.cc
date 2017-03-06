@@ -171,8 +171,9 @@ bool OnUncaughtException(v8::Isolate* isolate) {
       (commandline_string.find("abort_on_uncaught_exception") != std::string::npos)) {
     return true;  // abort required
   }
-  // On V8 versions earlier than 5.4 we need to print the exception backtrace
-  // to stderr, as V8 does not do so (unless we trigger an abort, as above).
+  // On versions earlier than 5.4, V8 does not provide the default behaviour
+  // for uncaught exception on return from this callback. Default behaviour is
+  // to print a stack trace and exit with rc=1, so we need to mimic that here.
   int v8_major, v8_minor;
   if (sscanf(v8::V8::GetVersion(), "%d.%d", &v8_major, &v8_minor) == 2) {
     if (v8_major < 5 || (v8_major == 5 && v8_minor < 4)) {
@@ -184,6 +185,8 @@ bool OnUncaughtException(v8::Isolate* isolate) {
       // On other platforms use the Message API
       Message::PrintCurrentStackTrace(isolate, stderr);
 #endif
+      // exit direct from this callback with rc=1, to mimic V8 behaviour
+      exit(1);
     }
   }
   return false;
