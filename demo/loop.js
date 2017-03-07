@@ -1,19 +1,12 @@
 // Example - generation of report via signal for a looping application
-require('node-report').setEvents("signal");
+// Note: node-report signal trigger is not supported on Windows
+require('node-report');
 var http = require("http");
 
-var count = 0;
-
 function my_listener(request, response) {
-  switch(count++) {
-  case 0:
-    response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning node-report looping application demo. Node process ID = " + process.pid);
-    response.write("\n\nRefresh page to enter loop, then use 'kill -USR2 " + process.pid + "' to trigger report");
-    response.end();
-    break;
-  case 1:
-    console.log("loop.js: going to loop now, use 'kill -USR2 " + process.pid + "' to trigger report");
+  switch (request.url) {
+  case '/loop':
+    console.log("loop.js: going to busy loop now, use 'kill -USR2 " + process.pid + "' to trigger report");
     var list = [];
     for (var i=0; i<10000000000; i++) {
       for (var j=0; i<1000; i++) {
@@ -27,11 +20,23 @@ function my_listener(request, response) {
         list.pop();
       }
     }
-    response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nnode-report demo.... finished looping");
+    // drop through to refresh page
+  case '/':
+    response.writeHead(200, "OK",{'Content-Type': 'text/html'});
+    response.write('<html><head><title>node-report example</title></head><body style="font-family:arial;">');
+    response.write('<h2>node-report example: report triggered using USR2 signal</h2>');
+    response.write('<p>Click on button below to enter JavaScript busy loop, then');
+    response.write(' use "kill -USR2 ' + process.pid + '" in a terminal window to trigger report');
+    response.write('<form enctype="application/x-www-form-urlencoded" action="/loop" method="post">');
+    response.write('<button>Enter busy loop</button></form>');
+    response.write('<p>When busy loop completes, click on button below to terminate the application.');
+    response.write('<form enctype="application/x-www-form-urlencoded" action="/end" method="post">');
+    response.write('<button>End application</button></form>');
+    response.write('</form></body></html');
     response.end();
     break;
-  default:
+  case '/end':
+    process.exit(0);
   }
 }
 
