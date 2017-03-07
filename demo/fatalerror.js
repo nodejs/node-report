@@ -1,28 +1,30 @@
-// Example - generation of report on fatal error (Javascript heap OOM)
-require('node-report').setEvents("fatalerror");
+// Example - generation of report on fatal error (JavaScript heap OOM)
+require('node-report');
 var http = require('http');
 
-var count = 0;
-
 function my_listener(request, response) {
-  switch(count++) {
-  case 0:
-    response.writeHead(200,{"Content-Type": "text/plain"});
-    response.write("\nRunning node-report fatal error demo... refresh page to trigger excessive memory usage (application will terminate)");
+  switch (request.url) {
+  case '/':
+    response.writeHead(200, "OK",{'Content-Type': 'text/html'});
+    response.write('<html><head><title>node-report example</title></head><body style="font-family:arial;">');
+    response.write('<h2>node-report example: report triggered on fatal error (heap OOM)</h2>');
+    response.write('<p>Click on button below to initiate excessive memory usage.');
+    response.write('<p>The application will fail when the heap is full, and the node-report module will produce a report.');
+    response.write('<form enctype="application/x-www-form-urlencoded" action="/memory" method="post">');
+    response.write('<button>Use memory</button></form>');
+    response.write('</form></body></html');
     response.end();
     break;
-  case 1:
-    console.log('heap_oom.js: allocating excessive Javascript heap memory....');
+  case '/memory':
+    console.log('fatalerror.js: allocating excessive JavaScript heap memory....please wait');
     var list = [];
-    while (true) {
-      list.push(new MyRecord());
-    }
+    while (true) list.push(new my_record());
     response.end();
     break;
   }
 }
 
-function MyRecord() {
+function my_record() {
   this.name = 'foo';
   this.id = 128;
   this.account = 98454324;
@@ -36,6 +38,6 @@ console.log('fatalerror.js: Note: heap default is 1.4Gb, use --max-old-space-siz
 console.log('fatalerror.js: Go to http://<machine>:8080/ or http://localhost:8080/');
 
 setTimeout(function(){
-  console.log('fatalerror.js: timeout expired, exiting.');
+  console.log('fatalerror.js: application timeout expired, exiting.');
   process.exit(0);
 }, 60000);
