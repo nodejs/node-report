@@ -18,7 +18,7 @@
     "Richard Chamberlain <richard_chamberlain@uk.ibm.com> (https://github.com/rnchamberlain)"
   ],
   "scripts": {
-    "test": "tap test/test*.js"
+    "test": "tap --timeout=300 test/test*.js"
   },
   "bugs": {
     "url": "https://github.com/nodejs/node-report/issues"
