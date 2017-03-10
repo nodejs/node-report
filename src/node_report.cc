@@ -630,8 +630,12 @@ static void PrintVersionInformation(std::ostream& out) {
 
   // Print node-report module version
   // e.g. node-report version: 1.0.6 (built against Node.js v6.9.1)
-  out << "\nnode-report version: " << NODEREPORT_VERSION
-      << " (built against Node.js v" << NODE_VERSION_STRING << ")\n";
+  out << std::endl << "node-report version: " << NODEREPORT_VERSION
+      << " (built against Node.js v" << NODE_VERSION_STRING;
+#if defined(__GLIBC__)
+  out << ", glibc " << __GLIBC__ << "." << __GLIBC_MINOR__;
+#endif
+  out << ")" << std::endl;
 
   // Print operating system and machine information (Windows)
 #ifdef _WIN32
@@ -718,9 +722,11 @@ static void PrintVersionInformation(std::ostream& out) {
     out << "\nOS version: " << os_info.sysname << " " << os_info.release << " "
         << os_info.version << "\n";
 #endif
-#if defined(__GLIBC__)
-    out << "(glibc: "<< __GLIBC__ << "." << __GLIBC_MINOR__ << ")\n";
-#endif
+    const char *(*libc_version)();
+    *(void**)(&libc_version) = dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
+    if (libc_version != NULL) {
+      out << "(glibc: " << (*libc_version)() << ")" << std::endl;
+    }
     out <<  "\nMachine: " << os_info.nodename << " " << os_info.machine << "\n";
   }
 #endif
