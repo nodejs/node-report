@@ -1,5 +1,6 @@
 'use strict';
 
+const child_process = require('child_process');
 const fs = require('fs');
 const os = require('os');
 
@@ -59,6 +60,11 @@ exports.validateContent = function validateContent(data, t, options) {
                            nodeComponents;
   var plan = REPORT_SECTIONS.length + nodeComponents.length + 5;
   if (options.commandline) plan++;
+  const glibcRE = /\(glibc:\s([\d.]+)/;
+  const libcRE = /\n\s+(\/.*\/libc.so.6)\b/;
+  const nodeReportSection = getSection(reportContents, 'Node Report');
+  const sysInfoSection = getSection(reportContents, 'System Information');
+  if (glibcRE.test(nodeReportSection) && libcRE.test(sysInfoSection)) plan++;
   t.plan(plan);
   // Check all sections are present
   REPORT_SECTIONS.forEach((section) => {
@@ -67,7 +73,6 @@ exports.validateContent = function validateContent(data, t, options) {
   });
 
   // Check report header section
-  const nodeReportSection = getSection(reportContents, 'Node Report');
   t.match(nodeReportSection, new RegExp('Process ID: ' + pid),
           'Node Report header section contains expected process ID');
   if (options && options.expectNodeVersion === false) {
@@ -142,7 +147,20 @@ exports.validateContent = function validateContent(data, t, options) {
   }
 
   // Check report System Information section
-  const sysInfoSection = getSection(reportContents, 'System Information');
+  // If the report contains a glibc version, check it against libc.so.6
+  const glibcMatch = glibcRE.exec(nodeReportSection);
+  if (glibcMatch != null) {
+    const libcMatch = libcRE.exec(sysInfoSection);
+    if (libcMatch != null) {
+      const libcPath = libcMatch[1];
+      const child = child_process.spawnSync(libcPath, { encoding: 'utf8' });
+      const match = /GNU C Library.*\bversion ([\d.]+)\b/.exec(child.stdout);
+      if (match != null) {
+        t.equal(glibcMatch[1], match[1],
+                'Checking reported runtime glibc version against ' + libcPath);
+      }
+    }
+  }
   // Find a line which ends with "/api.node" or "\api.node" (Unix or
   // Windows paths) to see if the library for node report was loaded.
   t.match(sysInfoSection, /  .*(\/|\\)api\.node/,
