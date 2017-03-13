@@ -61,10 +61,11 @@ exports.validateContent = function validateContent(data, t, options) {
   var plan = REPORT_SECTIONS.length + nodeComponents.length + 5;
   if (options.commandline) plan++;
   const glibcRE = /\(glibc:\s([\d.]+)/;
-  const libcRE = /\n\s+(\/.*\/libc.so.6)\b/;
   const nodeReportSection = getSection(reportContents, 'Node Report');
   const sysInfoSection = getSection(reportContents, 'System Information');
-  if (glibcRE.test(nodeReportSection) && libcRE.test(sysInfoSection)) plan++;
+  const libcPath = getLibcPath(sysInfoSection);
+  const libcVersion = getLibcVersion(libcPath);
+  if (glibcRE.test(nodeReportSection) && libcVersion) plan++;
   t.plan(plan);
   // Check all sections are present
   REPORT_SECTIONS.forEach((section) => {
@@ -149,22 +150,28 @@ exports.validateContent = function validateContent(data, t, options) {
   // Check report System Information section
   // If the report contains a glibc version, check it against libc.so.6
   const glibcMatch = glibcRE.exec(nodeReportSection);
-  if (glibcMatch != null) {
-    const libcMatch = libcRE.exec(sysInfoSection);
-    if (libcMatch != null) {
-      const libcPath = libcMatch[1];
-      const child = child_process.spawnSync(libcPath, { encoding: 'utf8' });
-      const match = /GNU C Library.*\bversion ([\d.]+)\b/.exec(child.stdout);
-      if (match != null) {
-        t.equal(glibcMatch[1], match[1],
-                'Checking reported runtime glibc version against ' + libcPath);
-      }
-    }
+  if (glibcMatch != null && libcVersion) {
+    t.equal(glibcMatch[1], libcVersion,
+            'Checking reported runtime glibc version against ' + libcPath);
   }
   // Find a line which ends with "/api.node" or "\api.node" (Unix or
   // Windows paths) to see if the library for node report was loaded.
   t.match(sysInfoSection, /  .*(\/|\\)api\.node/,
     'System Information section contains node-report library.');
+};
+
+const getLibcPath = (section) => {
+  const libcMatch = /\n\s+(\/.*\/libc.so.6)\b/.exec(section);
+  return (libcMatch != null ? libcMatch[1] : undefined);
+};
+
+const getLibcVersion = (path) => {
+  if (!path) {
+    return undefined;
+  }
+  const child = child_process.spawnSync('strings', [path], {encoding: 'utf8'});
+  const match = /GNU C Library.*\bversion ([\d.]+)\b/.exec(child.stdout);
+  return (match != null ? match[1] : undefined);
 };
 
 const getSection = (report, section) => {
