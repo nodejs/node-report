@@ -633,7 +633,7 @@ static void PrintVersionInformation(std::ostream& out) {
   out << std::endl << "node-report version: " << NODEREPORT_VERSION
       << " (built against Node.js v" << NODE_VERSION_STRING;
 #if defined(__GLIBC__)
-  out << ", glibc "<< __GLIBC__ << "." << __GLIBC_MINOR__;
+  out << ", glibc " << __GLIBC__ << "." << __GLIBC_MINOR__;
 #endif
   out << ")" << std::endl;
 
