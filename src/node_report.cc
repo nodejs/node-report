@@ -635,7 +635,8 @@ static void PrintVersionInformation(std::ostream& out) {
 #if defined(__GLIBC__)
   out << ", glibc " << __GLIBC__ << "." << __GLIBC_MINOR__;
 #endif
-  out << ")" << std::endl;
+  // Print Process word size
+  out << ", " << sizeof(void *) * 8 << " bit" << ")" << std::endl;
 
   // Print operating system and machine information (Windows)
 #ifdef _WIN32
