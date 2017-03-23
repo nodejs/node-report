@@ -1,3 +1,21 @@
+2017-03-23, Version 2.1.2
+=========================
+
+ * Report compile time and runtime glibc version (Richard Lau)
+
+ * Improve useability of node-report demos (Richard Chamberlain)
+
+ * Fix return code from uncaught exception handler (Richard Chamberlain)
+
+ * Increase tap timeout for CI testing (Richard Chamberlain)
+
+ * test: Move OS version tests to common.js (Richard Lau)
+
+ * docs: update platform support (Richard Lau)
+
+ * smartos: enable node-report on SmartOS (Howard Hellyer)
+
+
 2017-02-22, Version 2.1.1
 =========================
 
