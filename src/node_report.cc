@@ -106,6 +106,7 @@ static char report_directory[NR_MAXPATH + 1] = ""; // defaults to current workin
 std::string version_string = UNKNOWN_NODEVERSION_STRING;
 std::string commandline_string = "";
 static TIME_TYPE loadtime_tm_struct; // module load time
+static time_t load_time; // module load time absolute
 
 /*******************************************************************************
  * Functions to process node-report configuration options:
@@ -301,6 +302,7 @@ void SetLoadTime() {
   gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, &loadtime_tm_struct);
 #endif
+load_time = mktime(&loadtime_tm_struct);
 }
 
 /*******************************************************************************
@@ -1025,6 +1027,13 @@ static void PrintGCStatistics(std::ostream& out, Isolate* isolate) {
  ******************************************************************************/
 static void PrintResourceUsage(std::ostream& out) {
   char buf[64];
+  double cpu_abs;
+  double cpu_percentage;
+  time_t current_time; // current time absolute
+  time(&current_time);
+  auto uptime = difftime(current_time, load_time);
+  if (uptime == 0)
+    uptime = 1; // avoid division by zero.
   out << "\n================================================================================";
   out << "\n==== Resource Usage ============================================================\n";
 
@@ -1043,6 +1052,9 @@ static void PrintResourceUsage(std::ostream& out) {
     snprintf( buf, sizeof(buf), "%ld.%06ld", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
     out << "\n  Kernel mode CPU: " << buf << " secs";
 #endif
+    cpu_abs = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec + stats.ru_stime.tv_sec + 0.000001 *  stats.ru_stime.tv_usec;
+    cpu_percentage = (cpu_abs / uptime) * 100.0;
+    out << "\n  Average CPU Consumption : "<< cpu_percentage << "%";
     out << "\n  Maximum resident set size: ";
     WriteInteger(out, stats.ru_maxrss * 1024);
     out << " bytes\n  Page faults: " << stats.ru_majflt << " (I/O required) "
@@ -1064,6 +1076,9 @@ static void PrintResourceUsage(std::ostream& out) {
     snprintf( buf, sizeof(buf), "%ld.%06ld", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
     out << "\n  Kernel mode CPU: " << buf << " secs";
 #endif
+    cpu_abs = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec + stats.ru_stime.tv_sec + 0.000001 *  stats.ru_stime.tv_usec;
+    cpu_percentage = (cpu_abs / uptime) * 100.0;
+    out << "\n  Average CPU Consumption : " << cpu_percentage << "%";
     out << "\n  Filesystem activity: " << stats.ru_inblock << " reads "
         << stats.ru_oublock << " writes";
   }
