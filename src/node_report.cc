@@ -82,10 +82,11 @@ typedef struct tm TIME_TYPE;
 #endif
 
 // Internal/static function declarations
-static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, TIME_TYPE* time);
+static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, v8::MaybeLocal<v8::Value> error, TIME_TYPE* time);
 static void PrintCommandLine(std::ostream& out);
 static void PrintVersionInformation(std::ostream& out);
 static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent event, const char* location);
+static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, v8::MaybeLocal<v8::Value> error);
 static void PrintStackFromStackTrace(std::ostream& out, Isolate* isolate, DumpEvent event);
 static void PrintStackFrame(std::ostream& out, Isolate* isolate, Local<StackFrame> frame, int index, void* pc);
 static void PrintNativeStack(std::ostream& out);
@@ -379,7 +380,7 @@ void SetCommandLine() {
  *   const char* location
  *   char* name - in/out - returns the report filename
  ******************************************************************************/
-void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name) {
+void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, v8::MaybeLocal<v8::Value> error) {
   // Recursion check for report in progress, bail out
   if (report_active) return;
   report_active = true;
@@ -460,7 +461,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
   // Pass our stream about by reference, not by copying it.
   std::ostream &out = outfile.is_open() ? outfile : *outstream;
 
-  WriteNodeReport(isolate, event, message, location, filename, out, &tm_struct);
+  WriteNodeReport(isolate, event, message, location, filename, out, error, &tm_struct);
 
   // Do not close stdout/stderr, only close files we opened.
   if(outfile.is_open()) {
@@ -474,7 +475,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
 
 }
 
-void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, std::ostream& out) {
+void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, v8::MaybeLocal<v8::Value> error, std::ostream& out) {
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
 #ifdef _WIN32
@@ -484,7 +485,7 @@ void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const
   gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, &tm_struct);
 #endif
-  WriteNodeReport(isolate, event, message, location, nullptr, out, &tm_struct);
+  WriteNodeReport(isolate, event, message, location, nullptr, out, error, &tm_struct);
 }
 
 static void walkHandle(uv_handle_t* h, void* arg) {
@@ -531,7 +532,7 @@ static void walkHandle(uv_handle_t* h, void* arg) {
   *out << buf;
 }
 
-static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, TIME_TYPE* tm_struct) {
+static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, v8::MaybeLocal<v8::Value> error, TIME_TYPE* tm_struct) {
 
 #ifdef _WIN32
   DWORD pid = GetCurrentProcessId();
@@ -587,6 +588,11 @@ static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* messa
 
   // Print native stack backtrace
   PrintNativeStack(out);
+  out << std::flush;
+
+  // Print the stack trace and message from the Error object.
+  // (If one was provided.)
+  PrintJavaScriptErrorStack(out, isolate, error);
   out << std::flush;
 
   // Print V8 Heap and Garbage Collector information
@@ -791,6 +797,25 @@ static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent 
 #endif
 }
 
+static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, v8::MaybeLocal<v8::Value> error) {
+  if (error.IsEmpty() || !error.ToLocalChecked()->IsNativeError()) {
+    return;
+  }
+
+  out << "\n================================================================================";
+  out << "\n==== JavaScript Exception Details ==============================================\n\n";
+  Local<Message> message = v8::Exception::CreateMessage(isolate, error.ToLocalChecked());
+  Nan::Utf8String message_str(message->Get());
+
+  out << *message_str << "\n";
+
+  Local<StackTrace> stack = v8::Exception::GetStackTrace(error.ToLocalChecked());
+  // Print the stack trace, adding in the pc values from GetStackSample() if available
+  for (int i = 0; i < stack->GetFrameCount(); i++) {
+    PrintStackFrame(out, isolate, stack->GetFrame(i), i, nullptr);
+  }
+}
+
 /*******************************************************************************
  * Function to print stack using GetStackSample() and StackTrace::StackTrace()
  *
@@ -842,13 +867,14 @@ static void PrintStackFrame(std::ostream& out, Isolate* isolate, Local<StackFram
   char buf[64];
 
   // First print the frame index and the instruction address
+  if( pc != nullptr ) {
 #ifdef _WIN32
-  snprintf( buf, sizeof(buf), "%2d: [pc=0x%p] ", i, pc);
-  out << buf;
+    snprintf( buf, sizeof(buf), "%2d: [pc=0x%p] ", i, pc);
 #else
-  snprintf( buf, sizeof(buf), "%2d: [pc=%p] ", i, pc);
-  out << buf;
+    snprintf( buf, sizeof(buf), "%2d: [pc=%p] ", i, pc);
 #endif
+    out << buf;
+  }
 
   // Now print the JavaScript function name and source information
   if (frame->IsEval()) {

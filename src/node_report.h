@@ -32,8 +32,8 @@ using v8::StackFrame;
 
 enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript};
 
-void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name);
-void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, std::ostream& out);
+void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, v8::MaybeLocal<v8::Value> error);
+void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, v8::MaybeLocal<v8::Value> error, std::ostream& out);
 
 unsigned int ProcessNodeReportEvents(const char* args);
 unsigned int ProcessNodeReportSignal(const char* args);
