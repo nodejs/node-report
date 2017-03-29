@@ -58,11 +58,18 @@ exports.validateContent = function validateContent(data, t, options) {
   const expectedVersions = options ?
                            options.expectedVersions || nodeComponents :
                            nodeComponents;
-  var plan = REPORT_SECTIONS.length + nodeComponents.length + 5;
+  const expectedException = options.expectedException;
+  if (options.expectedException) {
+    REPORT_SECTIONS.push('JavaScript Exception Details');
+  }
+
+  let plan = REPORT_SECTIONS.length + nodeComponents.length + 5;
   if (options.commandline) plan++;
+  if (options.expectedException) plan++;
   const glibcRE = /\(glibc:\s([\d.]+)/;
   const nodeReportSection = getSection(reportContents, 'Node Report');
   const sysInfoSection = getSection(reportContents, 'System Information');
+  const exceptionSection = getSection(reportContents, 'JavaScript Exception Details');
   const libcPath = getLibcPath(sysInfoSection);
   const libcVersion = getLibcVersion(libcPath);
   if (glibcRE.test(nodeReportSection) && libcVersion) plan++;
@@ -83,6 +90,10 @@ exports.validateContent = function validateContent(data, t, options) {
     t.match(nodeReportSection,
             new RegExp('Node.js version: ' + process.version),
             'Node Report header section contains expected Node.js version');
+  }
+  if (options && options.expectedException) {
+	  t.match(exceptionSection, new RegExp('Uncaught Error: ' + options.expectedException),
+      'Node Report JavaScript Exception contains expected message');
   }
   if (options && options.commandline) {
     if (this.isWindows()) {

@@ -69,6 +69,26 @@ can be specified as a parameter on the `triggerReport()` call.
 nodereport.triggerReport("myReportName");
 ```
 
+Both `triggerReport()` and `getReport()` can take an optional `Error` object
+as a parameter. If an `Error` object is provided, the message and stack trace
+from the object will be included in the report in the `JavaScript Exception
+Details` section.
+When using node-report to handle errors in a callback or an exception handler
+this allows the report to include the location of the original error as well
+as where it was handled.
+If both a filename and `Error` object are passed to `triggerReport()` the
+`Error` object should be the second parameter.
+
+```js
+try {
+  process.chdir('/foo/foo');
+} catch (err) {
+  nodereport.triggerReport(err);
+}
+  ...
+});
+```
+
 ## Configuration
 
 Additional configuration is available using the following APIs:

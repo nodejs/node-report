@@ -19,6 +19,7 @@ using v8::String;
 using v8::Value;
 using v8::StackTrace;
 using v8::StackFrame;
+using v8::MaybeLocal;
 
 // Bit-flags for node-report trigger options
 #define NR_EXCEPTION  0x01
@@ -32,8 +33,8 @@ using v8::StackFrame;
 
 enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript};
 
-void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name);
-void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, std::ostream& out);
+void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, v8::MaybeLocal<v8::Value> error);
+void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, v8::MaybeLocal<v8::Value> error, std::ostream& out);
 
 unsigned int ProcessNodeReportEvents(const char* args);
 unsigned int ProcessNodeReportSignal(const char* args);
