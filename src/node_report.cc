@@ -517,7 +517,11 @@ static void walkHandle(uv_handle_t* h, void* arg) {
   }
 
   snprintf(buf, sizeof(buf),
+#ifdef _WIN32
               "[%c%c]   %-10s0x%p\n",
+#else
+              "[%c%c]   %-10s%p\n",
+#endif
               uv_has_ref(h)?'R':'-',
               uv_is_active(h)?'A':'-',
               type.c_str(), (void*)h);
