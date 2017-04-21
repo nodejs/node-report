@@ -810,6 +810,10 @@ static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, v8::M
   out << *message_str << "\n";
 
   Local<StackTrace> stack = v8::Exception::GetStackTrace(error.ToLocalChecked());
+  if (stack.IsEmpty()) {
+     out << "\nNo stack trace available from Exception::GetStackTrace()\n";
+     return;
+  }
   // Print the stack trace, adding in the pc values from GetStackSample() if available
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     PrintStackFrame(out, isolate, stack->GetFrame(i), i, nullptr);
