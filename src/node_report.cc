@@ -871,7 +871,7 @@ static void PrintStackFrame(std::ostream& out, Isolate* isolate, Local<StackFram
   char buf[64];
 
   // First print the frame index and the instruction address
-  if( pc != nullptr ) {
+  if (pc != nullptr) {
 #ifdef _WIN32
     snprintf( buf, sizeof(buf), "%2d: [pc=0x%p] ", i, pc);
 #else

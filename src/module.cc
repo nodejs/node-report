@@ -66,7 +66,7 @@ NAN_METHOD(TriggerReport) {
   }
 
   // We need to pass the javascript object so we can query if for a stack trace.
-  if( info[err_index]->IsNativeError()) {
+  if (info[err_index]->IsNativeError()) {
     error = info[err_index];
   }
 
@@ -87,7 +87,7 @@ NAN_METHOD(GetReport) {
   std::ostringstream out;
 
   v8::MaybeLocal<v8::Value> error;
-  if( info[0]->IsNativeError()) {
+  if (info[0]->IsNativeError()) {
     error = info[0];
   }
 

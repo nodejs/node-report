@@ -7,7 +7,7 @@ if (process.argv[2] === 'child') {
   try {
     throw new Error("Testing error handling");
   } catch (err) {
-	  nodereport.triggerReport(err);
+    nodereport.triggerReport(err);
   }
 } else {
   const common = require('./common.js');

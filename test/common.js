@@ -91,7 +91,7 @@ exports.validateContent = function validateContent(data, t, options) {
             new RegExp('Node.js version: ' + process.version),
             'Node Report header section contains expected Node.js version');
   }
-  if( options && options.expectedException) {
+  if (options && options.expectedException) {
 	  t.match(exceptionSection, new RegExp('Uncaught Error: ' + options.expectedException),
       'Node Report JavaScript Exception contains expected message');
   }
