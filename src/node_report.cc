@@ -302,7 +302,7 @@ void SetLoadTime() {
   gettimeofday(&time_val, nullptr);
   localtime_r(&time_val.tv_sec, &loadtime_tm_struct);
 #endif
-load_time = mktime(&loadtime_tm_struct);
+  time(&load_time);
 }
 
 /*******************************************************************************
