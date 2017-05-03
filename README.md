@@ -80,10 +80,11 @@ If both a filename and `Error` object are passed to `triggerReport()` the
 `Error` object should be the second parameter.
 
 ```js
-fs.stat('/usr/local/fake/fake.txt', (err, stats) => {
-  if (err) {
-    nodereport.triggerReport(err);
-  }
+try {
+  process.chdir('/foo/foo');
+} catch (err) {
+  nodereport.triggerReport(err);
+}
   ...
 });
 ```
