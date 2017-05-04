@@ -51,7 +51,7 @@ NAN_METHOD(TriggerReport) {
   Nan::HandleScope scope;
   v8::Isolate* isolate = info.GetIsolate();
   char filename[NR_MAXNAME + 1] = "";
-  v8::MaybeLocal<v8::Value> error;
+  MaybeLocal<Value> error;
   int err_index = 0;
 
   if (info[0]->IsString()) {
@@ -65,7 +65,7 @@ NAN_METHOD(TriggerReport) {
     err_index++;
   }
 
-  // We need to pass the javascript object so we can query if for a stack trace.
+  // We need to pass the JavaScript object so we can query it for a stack trace.
   if (info[err_index]->IsNativeError()) {
     error = info[err_index];
   }
@@ -86,7 +86,7 @@ NAN_METHOD(GetReport) {
   v8::Isolate* isolate = info.GetIsolate();
   std::ostringstream out;
 
-  v8::MaybeLocal<v8::Value> error;
+  MaybeLocal<Value> error;
   if (info[0]->IsNativeError()) {
     error = info[0];
   }
@@ -170,7 +170,7 @@ static void OnFatalError(const char* location, const char* message) {
   }
   // Trigger report if requested
   if (nodereport_events & NR_FATALERROR) {
-    TriggerNodeReport(Isolate::GetCurrent(), kFatalError, message, location, nullptr, v8::MaybeLocal<v8::Value>());
+    TriggerNodeReport(Isolate::GetCurrent(), kFatalError, message, location, nullptr, MaybeLocal<Value>());
   }
   fflush(stderr);
   raise(SIGABRT);
@@ -179,7 +179,7 @@ static void OnFatalError(const char* location, const char* message) {
 bool OnUncaughtException(v8::Isolate* isolate) {
   // Trigger report if requested
   if (nodereport_events & NR_EXCEPTION) {
-    TriggerNodeReport(isolate, kException, "exception", __func__, nullptr, v8::MaybeLocal<v8::Value>());
+    TriggerNodeReport(isolate, kException, "exception", __func__, nullptr, MaybeLocal<Value>());
   }
   if ((commandline_string.find("abort-on-uncaught-exception") != std::string::npos) ||
       (commandline_string.find("abort_on_uncaught_exception") != std::string::npos)) {
@@ -245,7 +245,7 @@ static void SignalDumpInterruptCallback(Isolate* isolate, void* data) {
         fprintf(stdout, "node-report: SignalDumpInterruptCallback triggering report\n");
       }
       TriggerNodeReport(isolate, kSignal_JS,
-                        node::signo_string(report_signal), __func__, nullptr, v8::MaybeLocal<v8::Value>());
+                        node::signo_string(report_signal), __func__, nullptr, MaybeLocal<Value>());
     }
     report_signal = 0;
   }
@@ -260,7 +260,7 @@ static void SignalDumpAsyncCallback(uv_async_t* handle) {
         fprintf(stdout, "node-report: SignalDumpAsyncCallback triggering NodeReport\n");
       }
       TriggerNodeReport(Isolate::GetCurrent(), kSignal_UV,
-                        node::signo_string(report_signal), __func__, nullptr, v8::MaybeLocal<v8::Value>());
+                        node::signo_string(report_signal), __func__, nullptr, MaybeLocal<Value>());
     }
     report_signal = 0;
   }

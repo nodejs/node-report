@@ -82,11 +82,11 @@ typedef struct tm TIME_TYPE;
 #endif
 
 // Internal/static function declarations
-static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, v8::MaybeLocal<v8::Value> error, TIME_TYPE* time);
+static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, MaybeLocal<Value> error, TIME_TYPE* time);
 static void PrintCommandLine(std::ostream& out);
 static void PrintVersionInformation(std::ostream& out);
 static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent event, const char* location);
-static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, v8::MaybeLocal<v8::Value> error);
+static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, MaybeLocal<Value> error);
 static void PrintStackFromStackTrace(std::ostream& out, Isolate* isolate, DumpEvent event);
 static void PrintStackFrame(std::ostream& out, Isolate* isolate, Local<StackFrame> frame, int index, void* pc);
 static void PrintNativeStack(std::ostream& out);
@@ -379,8 +379,9 @@ void SetCommandLine() {
  *   const char* message
  *   const char* location
  *   char* name - in/out - returns the report filename
+ *   MaybeLocal<Value> error - JavaScript Error object.
  ******************************************************************************/
-void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, v8::MaybeLocal<v8::Value> error) {
+void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, MaybeLocal<Value> error) {
   // Recursion check for report in progress, bail out
   if (report_active) return;
   report_active = true;
@@ -475,7 +476,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
 
 }
 
-void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, v8::MaybeLocal<v8::Value> error, std::ostream& out) {
+void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, MaybeLocal<Value> error, std::ostream& out) {
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
 #ifdef _WIN32
@@ -532,7 +533,7 @@ static void walkHandle(uv_handle_t* h, void* arg) {
   *out << buf;
 }
 
-static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, v8::MaybeLocal<v8::Value> error, TIME_TYPE* tm_struct) {
+static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, MaybeLocal<Value> error, TIME_TYPE* tm_struct) {
 
 #ifdef _WIN32
   DWORD pid = GetCurrentProcessId();
@@ -797,7 +798,7 @@ static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent 
 #endif
 }
 
-static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, v8::MaybeLocal<v8::Value> error) {
+static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, MaybeLocal<Value> error) {
   if (error.IsEmpty() || !error.ToLocalChecked()->IsNativeError()) {
     return;
   }

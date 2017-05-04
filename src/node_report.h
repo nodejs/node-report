@@ -19,6 +19,7 @@ using v8::String;
 using v8::Value;
 using v8::StackTrace;
 using v8::StackFrame;
+using v8::MaybeLocal;
 
 // Bit-flags for node-report trigger options
 #define NR_EXCEPTION  0x01
