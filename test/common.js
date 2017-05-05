@@ -185,7 +185,7 @@ const getLibcVersion = (path) => {
   return (match != null ? match[1] : undefined);
 };
 
-const getSection = (report, section) => {
+const getSection = exports.getSection = (report, section) => {
   const re = new RegExp('==== ' + section + ' =+' + reNewline + '+([\\S\\s]+?)'
                         + reNewline + '+={80}' + reNewline);
   const match = re.exec(report);
