@@ -1,5 +1,6 @@
 #include "node_report.h"
 #include "v8.h"
+#include "uv.h"
 #include "time.h"
 
 #include <fcntl.h>
@@ -7,8 +8,10 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <iomanip>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #if !defined(_MSC_VER)
 #include <strings.h>
@@ -489,48 +492,236 @@ void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const
   WriteNodeReport(isolate, event, message, location, nullptr, out, error, &tm_struct);
 }
 
+static void reportEndpoints(uv_handle_t* h, std::ostringstream& out) {
+  struct sockaddr_storage addr_storage;
+  struct sockaddr* addr = (sockaddr*)&addr_storage;
+  char hostbuf[NI_MAXHOST];
+  char portbuf[NI_MAXSERV];
+  uv_any_handle* handle = (uv_any_handle*)h;
+  int addr_size = sizeof(addr_storage);
+  int rc = -1;
+
+  switch (h->type) {
+    case UV_UDP: {
+      rc = uv_udp_getsockname(&(handle->udp), addr, &addr_size);
+      break;
+    }
+    case UV_TCP: {
+      rc = uv_tcp_getsockname(&(handle->tcp), addr, &addr_size);
+      break;
+    }
+    default: break;
+  }
+  if (rc == 0) {
+    // getnameinfo will format host and port and handle IPv4/IPv6.
+    rc = getnameinfo(addr, addr_size, hostbuf, sizeof(hostbuf), portbuf,
+                     sizeof(portbuf), NI_NUMERICSERV);
+    if (rc == 0) {
+      out << std::string(hostbuf) << ":" << std::string(portbuf);
+    }
+
+    if (h->type == UV_TCP) {
+      // Get the remote end of the connection.
+      rc = uv_tcp_getpeername(&(handle->tcp), addr, &addr_size);
+      if (rc == 0) {
+        rc = getnameinfo(addr, addr_size, hostbuf, sizeof(hostbuf), portbuf,
+                         sizeof(portbuf), NI_NUMERICSERV);
+        if (rc == 0) {
+          out << " connected to ";
+          out << std::string(hostbuf) << ":" << std::string(portbuf);
+        }
+      } else if (rc == UV_ENOTCONN) {
+        out << " (not connected)";
+      }
+    }
+  }
+}
+
+static void reportPath(uv_handle_t* h, std::ostringstream& out) {
+  char *buffer = nullptr;
+  int rc = -1;
+  size_t size = 0;
+  uv_any_handle* handle = (uv_any_handle*)h;
+  // First call to get required buffer size.
+  switch (h->type) {
+    case UV_FS_EVENT: {
+      rc = uv_fs_event_getpath(&(handle->fs_event), buffer, &size);
+      break;
+    }
+    case UV_FS_POLL: {
+      rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer, &size);
+      break;
+    }
+    default: break;
+  }
+  if (rc == UV_ENOBUFS) {
+    buffer = static_cast<char *>(malloc(size));
+    switch (h->type) {
+      case UV_FS_EVENT: {
+        rc = uv_fs_event_getpath(&(handle->fs_event), buffer, &size);
+        break;
+      }
+      case UV_FS_POLL: {
+        rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer, &size);
+        break;
+      }
+      default: break;
+    }
+    if (rc == 0) {
+      // buffer is not null terminated.
+      std::string name(buffer, size);
+      out << "filename: " << name;
+    }
+    free(buffer);
+  }
+}
+
 static void walkHandle(uv_handle_t* h, void* arg) {
   std::string type;
-  std::string data = "";
+  std::ostringstream data;
   std::ostream* out = reinterpret_cast<std::ostream*>(arg);
-  char buf[64];
+  uv_any_handle* handle = (uv_any_handle*)h;
 
   // List all the types so we get a compile warning if we've missed one,
-  // (using default: supresses the compiler warning.)
+  // (using default: supresses the compiler warning).
   switch (h->type) {
     case UV_UNKNOWN_HANDLE: type = "unknown"; break;
     case UV_ASYNC: type = "async"; break;
     case UV_CHECK: type = "check"; break;
-    case UV_FS_EVENT: type = "fs_event"; break;
-    case UV_FS_POLL: type = "fs_poll"; break;
+    case UV_FS_EVENT: {
+      type = "fs_event";
+      reportPath(h, data);
+      break;
+    }
+    case UV_FS_POLL: {
+      type = "fs_poll";
+      reportPath(h, data);
+      break;
+    }
     case UV_HANDLE: type = "handle"; break;
     case UV_IDLE: type = "idle"; break;
     case UV_NAMED_PIPE: type = "pipe"; break;
     case UV_POLL: type = "poll"; break;
     case UV_PREPARE: type = "prepare"; break;
-    case UV_PROCESS: type = "process"; break;
+    case UV_PROCESS: {
+      type = "process";
+      data << "pid: " << handle->process.pid;
+      break;
+    }
     case UV_STREAM: type = "stream"; break;
-    case UV_TCP: type = "tcp"; break;
-    case UV_TIMER: type = "timer"; break;
-    case UV_TTY: type = "tty"; break;
-    case UV_UDP: type = "udp"; break;
-    case UV_SIGNAL: type = "signal"; break;
+    case UV_TCP: {
+      type = "tcp";
+      reportEndpoints(h, data);
+      break;
+    }
+    case UV_TIMER: {
+      // TODO timeout/due is not actually public however it is present
+      // in all current versions of libuv. Once uv_timer_get_timeout is
+      // in a supported level of libuv we should test for it with dlsym
+      // and use it instead, in case timeout moves in the future.
+#ifdef _WIN32
+      uint64_t due = handle->timer.due;
+#else
+      uint64_t due = handle->timer.timeout;
+#endif
+      uint64_t now = uv_now(handle->timer.loop);
+      type = "timer";
+      data << "repeat: " << uv_timer_get_repeat(&(handle->timer));
+      if (due > now) {
+          data << ", timeout in: " << (due - now) << " ms";
+      } else {
+          data << ", timeout expired: " << (now - due) << " ms ago";
+      }
+      break;
+    }
+    case UV_TTY: {
+      int height, width, rc;
+      type = "tty";
+      rc = uv_tty_get_winsize(&(handle->tty), &width, &height);
+      if (rc == 0) {
+        data << "width: " << width << ", height: " << height;
+      }
+      break;
+    }
+    case UV_UDP: {
+      type = "udp";
+      reportEndpoints(h, data);
+      break;
+    }
+    case UV_SIGNAL: {
+      // SIGWINCH is used by libuv so always appears.
+      // See http://docs.libuv.org/en/v1.x/signal.html
+      type = "signal";
+      data << "signum: " << handle->signal.signum
+      // node::signo_string() is not exported by Node.js on Windows.
+#ifndef _WIN32
+           << " (" << node::signo_string(handle->signal.signum) << ")"
+#endif
+           ;
+      break;
+    }
     case UV_FILE: type = "file"; break;
     // We shouldn't see "max" type
-    case UV_HANDLE_TYPE_MAX : break;
+    case UV_HANDLE_TYPE_MAX : type = "max"; break;
   }
 
-  snprintf(buf, sizeof(buf),
-#ifdef _WIN32
-              "[%c%c]   %-10s0x%p\n",
-#else
-              "[%c%c]   %-10s%p\n",
+  if (h->type == UV_TCP || h->type == UV_UDP
+#ifndef _WIN32
+      || h->type == UV_NAMED_PIPE
 #endif
-              uv_has_ref(h)?'R':'-',
-              uv_is_active(h)?'A':'-',
-              type.c_str(), (void*)h);
+      ) {
+    // These *must* be 0 or libuv will set the buffer sizes to the non-zero
+    // values they contain.
+    int send_size = 0;
+    int recv_size = 0;
+    if (h->type == UV_TCP || h->type == UV_UDP) {
+      data << ", ";
+    }
+    uv_send_buffer_size(h, &send_size);
+    uv_recv_buffer_size(h, &recv_size);
+    data << "send buffer size: " << send_size
+         << ", recv buffer size: " << recv_size;
+  }
 
-  *out << buf;
+  if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY ||
+      h->type == UV_UDP || h->type == UV_POLL) {
+    uv_os_fd_t fd_v;
+    uv_os_fd_t* fd = &fd_v;
+    int rc  = uv_fileno(h, fd);
+    // uv_os_fd_t is an int on Unix and HANDLE on Windows.
+#ifndef _WIN32
+    if (rc == 0) {
+      switch (fd_v) {
+      case 0:
+        data << ", stdin"; break;
+      case 1:
+        data << ", stdout"; break;
+      case 2:
+        data << ", stderr"; break;
+      default:
+        data << ", file descriptor: " << static_cast<int>(fd_v);
+        break;
+      }
+    }
+#endif
+  }
+
+  if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY) {
+
+    data << ", write queue size: "
+         << handle->stream.write_queue_size;
+    data << (uv_is_readable(&handle->stream) ? ", readable" : "")
+         << (uv_is_writable(&handle->stream) ? ", writable": "");
+
+  }
+
+  *out << std::left << "[" << (uv_has_ref(h) ? 'R' : '-')
+       << (uv_is_active(h) ? 'A' : '-') << "]   " << std::setw(10) << type
+       << std::internal << std::setw(2 + 2 * sizeof(void*));
+  char prev_fill = out->fill('0');
+  *out << static_cast<void*>(h) << std::left;
+  out->fill(prev_fill);
+  *out << "  " << std::left << data.str() << std::endl;
 }
 
 static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, MaybeLocal<Value> error, TIME_TYPE* tm_struct) {
@@ -540,6 +731,10 @@ static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* messa
 #else  // UNIX, OSX
   pid_t pid = getpid();
 #endif
+
+  // Save formatting for output stream.
+  std::ios oldState(nullptr);
+  oldState.copyfmt(out);
 
   // File stream opened OK, now start printing the report content, starting with the title
   // and header information (event, filename, timestamp and pid)
@@ -610,7 +805,9 @@ static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* messa
   out << "\n================================================================================";
   out << "\n==== Node.js libuv Handle Summary ==============================================\n";
   out << "\n(Flags: R=Ref, A=Active)\n";
-  out << "\nFlags  Type      Address\n";
+  out << std::left << std::setw(7) << "Flags" << std::setw(10) << "Type"
+      << std::setw(4 + 2 * sizeof(void*)) << "Address" << "Details"
+      << std::endl;
   uv_walk(uv_default_loop(), walkHandle, (void*)&out);
 
   // Print operating system information
@@ -618,6 +815,9 @@ static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* messa
 
   out << "\n================================================================================\n";
   out << std::flush;
+
+  // Restore output stream formatting.
+  out.copyfmt(oldState);
 
   report_active = false;
 }
