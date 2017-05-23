@@ -805,7 +805,11 @@ static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, Maybe
 
   out << "\n================================================================================";
   out << "\n==== JavaScript Exception Details ==============================================\n\n";
+#if NODE_MAJOR_VERSION > 5
   Local<Message> message = v8::Exception::CreateMessage(isolate, error.ToLocalChecked());
+#else
+  Local<Message> message = v8::Exception::CreateMessage(error.ToLocalChecked());
+#endif
   Nan::Utf8String message_str(message->Get());
 
   out << *message_str << "\n\n";
