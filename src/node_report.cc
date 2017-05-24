@@ -44,7 +44,9 @@
 #include <sys/ldr.h>
 #include <sys/procfs.h>
 #endif
-#ifndef _AIX
+// Include execinfo.h for the native backtrace API. The API is unavailable on AIX
+// and on some Linux distributions, e.g. Alpine Linux.
+#if !defined(_AIX) && !(defined(__linux__) && !defined(__GLIBC__))
 #include <execinfo.h>
 #endif
 #include <sys/utsname.h>
@@ -1163,6 +1165,16 @@ void PrintNativeStack(std::ostream& out) {
   out << "\n==== Native Stack Trace ========================================================\n\n";
   out << "Native stack trace not supported on AIX\n";
 }
+#elif (defined(__linux__) && !defined(__GLIBC__))
+/*******************************************************************************
+ * Function to print a native stack backtrace - Alpine Linux etc
+ *
+ ******************************************************************************/
+void PrintNativeStack(std::ostream& out) {
+  out << "\n================================================================================";
+  out << "\n==== Native Stack Trace ========================================================\n\n";
+  out << "Native stack trace not supported on Linux platforms without GLIBC\n";
+}
 #else
 /*******************************************************************************
  * Function to print a native stack backtrace - Linux/OSX
@@ -1391,6 +1403,9 @@ const static struct {
 #if defined(_AIX) || defined(__sun)
         snprintf(buf, sizeof(buf), "%16ld", limit.rlim_cur);
         out << buf;
+#elif (defined(__linux__) && !defined(__GLIBC__))
+        snprintf(buf, sizeof(buf), "%16lld", limit.rlim_cur);
+        out << buf;
 #else
         snprintf(buf, sizeof(buf), "%16" PRIu64, limit.rlim_cur);
         out << buf;
@@ -1399,8 +1414,11 @@ const static struct {
       if (limit.rlim_max == RLIM_INFINITY) {
         out << "       unlimited\n";
       } else {
-#ifdef _AIX
+#if defined(_AIX)
         snprintf(buf, sizeof(buf), "%16ld\n", limit.rlim_max);
+        out << buf;
+#elif (defined(__linux__) && !defined(__GLIBC__))
+        snprintf(buf, sizeof(buf), "%16lld\n", limit.rlim_max);
         out << buf;
 #else
         snprintf(buf, sizeof(buf), "%16" PRIu64 "\n", limit.rlim_max);
