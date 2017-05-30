@@ -1,3 +1,21 @@
+2017-05-30, Version 2.2.0
+=========================
+
+ * Additional information for libuv handles (Richard Lau)
+
+ * node_report.cc: Fix CreateMessage call (Howard Hellyer)
+
+ * Allow Error object to be passed to node-report (Howard Hellyer)
+
+ * windows: fix compile time error on mktime (Howard Hellyer)
+
+ * report: add average CPU consumption (Bidisha Pyne)
+
+ * Fix the use of %p to format handle pointers on non-Windows platforms. (Howard Hellyer)
+
+ * report: add word-size of the process (LAKSHMI SWETHA GOPIREDDY)
+
+
 2017-03-23, Version 2.1.2
 =========================
 
