@@ -1,10 +1,11 @@
 'use strict';
 
-// Testcase to produce report on fatal error (javascript heap OOM)
+// Testcase to produce report on fatal error (JavaScript heap OOM)
 if (process.argv[2] === 'child') {
   require('../');
 
   const list = [];
+  // Loop adding objects to the list until heap is full
   while (true) {
     const record = new MyRecord();
     list.push(record);
@@ -12,10 +13,11 @@ if (process.argv[2] === 'child') {
 
   function MyRecord() {
     this.name = 'foo';
-    this.id = 128;
-    this.account = 98454324;
+    this.buffer = Buffer.alloc(100000, 1);
   }
+
 } else {
+  // Testcase parent process implementation
   const common = require('./common.js');
   const spawn = require('child_process').spawn;
   const tap = require('tap');
