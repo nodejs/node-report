@@ -13,7 +13,7 @@ if (process.argv[2] === 'child') {
 
   function MyRecord() {
     this.name = 'foo';
-    this.buffer = Buffer.alloc(1000, 1);
+    this.buffer = Buffer.alloc(10000, 1);
   }
 
 } else {
@@ -22,7 +22,7 @@ if (process.argv[2] === 'child') {
   const spawn = require('child_process').spawn;
   const tap = require('tap');
 
-  const args = ['--max-old-space-size=20', __filename, 'child'];
+  const args = ['--max-old-space-size=10', __filename, 'child'];
   const child = spawn(process.execPath, args);
   child.on('exit', (code) => {
     tap.plan(3);
