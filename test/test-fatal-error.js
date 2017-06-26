@@ -13,7 +13,7 @@ if (process.argv[2] === 'child') {
 
   function MyRecord() {
     this.name = 'foo';
-    this.buffer = Buffer.alloc(100000, 1);
+    this.buffer = Buffer.alloc(1000, 1);
   }
 
 } else {
