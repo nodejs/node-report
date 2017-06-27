@@ -1173,7 +1173,7 @@ void PrintNativeStack(std::ostream& out) {
 void PrintNativeStack(std::ostream& out) {
   out << "\n================================================================================";
   out << "\n==== Native Stack Trace ========================================================\n\n";
-  out << "Native stack trace not supported on this Linux platform\n";
+  out << "Native stack trace not supported on Linux platforms without GLIBC\n";
 }
 #else
 /*******************************************************************************
