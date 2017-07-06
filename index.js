@@ -3,7 +3,7 @@
 const api = require('./api');
 
 // NODEREPORT_EVENTS env var overrides the defaults
-const options = process.env.NODEREPORT_EVENTS || 'exception+fatalerror+signal+apicall';
+const options = process.env.NODEREPORT_EVENTS || 'exception+fatalerror+signal+apicall+crash';
 api.setEvents(options);
 
 exports.triggerReport = api.triggerReport;

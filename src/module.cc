@@ -16,7 +16,8 @@ static int StartWatchdogThread(void* (*thread_main)(void* unused));
 static void RegisterSignalHandler(int signo, void (*handler)(int),
                                   struct sigaction* saved_sa);
 static void RestoreSignalHandler(int signo, struct sigaction* saved_sa);
-static void SignalDump(int signo);
+static void SignalHandler(int signo);
+static void CrashHandler(int signo);
 static void SetupSignalHandler();
 #endif
 
@@ -31,7 +32,10 @@ static int report_signal = 0;  // atomic for signal handling in progress
 static uv_sem_t report_semaphore;  // semaphore for hand-off to watchdog
 static uv_async_t nodereport_trigger_async;  // async handle for event loop
 static uv_mutex_t node_isolate_mutex;  // mutex for watchdog thread
-static struct sigaction saved_sa;  // saved signal action
+static struct sigaction saved_user_sa;  // saved user signal action
+static struct sigaction saved_sigsegv_sa;  // saved crash signal action
+static struct sigaction saved_sigill_sa;  // saved crash signal action
+static struct sigaction saved_sigfpe_sa;  // saved crash signal action
 #endif
 
 // State variables for v8 hooks and signal initialisation
@@ -128,7 +132,20 @@ NAN_METHOD(SetEvents) {
   }
   // If report no longer required on external user signal, reset the OS signal handler
   if (!(nodereport_events & NR_SIGNAL) && (previous_events & NR_SIGNAL)) {
-    RestoreSignalHandler(nodereport_signal, &saved_sa);
+    RestoreSignalHandler(nodereport_signal, &saved_user_sa);
+  }
+
+  // If report newly requested on native crash, set up signal handlers
+  if ((nodereport_events & NR_CRASH) && !(previous_events & NR_CRASH)) {
+    RegisterSignalHandler(SIGSEGV, CrashHandler, &saved_sigsegv_sa);
+    RegisterSignalHandler(SIGILL, CrashHandler, &saved_sigill_sa);
+    RegisterSignalHandler(SIGFPE, CrashHandler, &saved_sigfpe_sa);
+  }
+  // If report no longer required on native crash, reset the signal handlers
+  if (!(nodereport_events & NR_CRASH) && (previous_events & NR_CRASH)) {
+    RestoreSignalHandler(SIGSEGV, &saved_sigsegv_sa);
+    RestoreSignalHandler(SIGILL, &saved_sigill_sa);
+    RestoreSignalHandler(SIGFPE, &saved_sigfpe_sa);
   }
 #endif
 }
@@ -140,8 +157,8 @@ NAN_METHOD(SetSignal) {
 
   // If signal event active and selected signal has changed, switch the OS signal handler
   if ((nodereport_events & NR_SIGNAL) && (nodereport_signal != previous_signal)) {
-    RestoreSignalHandler(previous_signal, &saved_sa);
-    RegisterSignalHandler(nodereport_signal, SignalDump, &saved_sa);
+    RestoreSignalHandler(previous_signal, &saved_user_sa);
+    RegisterSignalHandler(nodereport_signal, SignalHandler, &saved_user_sa);
   }
 #endif
 }
@@ -268,8 +285,9 @@ static void SignalDumpAsyncCallback(uv_async_t* handle) {
 
 /*******************************************************************************
  * Utility functions for signal handling support (platforms except Windows)
- *  - RegisterSignalHandler() - register a raw OS signal handler
- *  - SignalDump() - implementation of raw OS signal handler
+ *  - RegisterSignalHandler() - register an OS signal handler
+ *  - SignalHandler() - implementation of OS signal handler for external signals
+ *  - CrashHandler() - implementation of OS signal handler for crash signals
  *  - StartWatchdogThread() - create a watchdog thread
  *  - ReportSignalThreadMain() - implementation of watchdog thread
  *  - SetupSignalHandler() - initialisation of signal handlers and threads
@@ -289,12 +307,28 @@ static void RestoreSignalHandler(int signo, struct sigaction* saved_sa) {
   sigaction(signo, saved_sa, nullptr);
 }
 
-// Raw signal handler for triggering a report - runs on an arbitrary thread
-static void SignalDump(int signo) {
+// Native signal handler for triggering a report on user signal - runs on an arbitrary thread
+static void SignalHandler(int signo) {
   // Check atomic for report already pending, storing the signal number
   if (__sync_val_compare_and_swap(&report_signal, 0, signo) == 0) {
     uv_sem_post(&report_semaphore);  // Hand-off to watchdog thread
   }
+}
+
+// Native signal handler for triggering a report on a crash, runs on crashing thread
+static void CrashHandler(int signo) {
+  // Remove node-report crash handlers in case we get a secondary crash
+  RestoreSignalHandler(signo, &saved_sigsegv_sa);
+  RestoreSignalHandler(signo, &saved_sigill_sa);
+  RestoreSignalHandler(signo, &saved_sigfpe_sa);
+  // Also remove the node-report user signal handler, if set
+  if (nodereport_events & NR_SIGNAL) {
+    RestoreSignalHandler(nodereport_signal, &saved_user_sa);
+  }
+  TriggerNodeReport(Isolate::GetCurrent(), kCrashSignal, node::signo_string(signo),
+                    __func__, nullptr, MaybeLocal<Value>());
+  // Propagate the signal
+  raise(signo);
 }
 
 // Utility function to start a watchdog thread - used for processing signals
@@ -361,7 +395,7 @@ static void SetupSignalHandler() {
       Nan::ThrowError("node-report: initialization failed, uv_async_init() returned error\n");
     }
     uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
-    RegisterSignalHandler(nodereport_signal, SignalDump, &saved_sa);
+    RegisterSignalHandler(nodereport_signal, SignalHandler, &saved_user_sa);
     signal_thread_initialised = true;
   }
 }
@@ -419,6 +453,12 @@ void Initialize(v8::Local<v8::Object> exports) {
   // If report requested on external user signal set up watchdog thread and callbacks
   if (nodereport_events & NR_SIGNAL) {
     SetupSignalHandler();
+  }
+  // If report requested on crash signal set up crash handler
+  if (nodereport_events & NR_CRASH) {
+    RegisterSignalHandler(SIGSEGV, CrashHandler, &saved_sigsegv_sa);
+    RegisterSignalHandler(SIGILL, CrashHandler, &saved_sigill_sa);
+    RegisterSignalHandler(SIGFPE, CrashHandler, &saved_sigfpe_sa);
   }
 #endif
 

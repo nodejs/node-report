@@ -140,6 +140,9 @@ unsigned int ProcessNodeReportEvents(const char* args) {
     } else if (!strncmp(cursor, "apicall", sizeof("apicall") - 1)) {
       event_flags |= NR_APICALL;
       cursor += sizeof("apicall") - 1;
+    } else if (!strncmp(cursor, "crash", sizeof("crash") - 1)) {
+      event_flags |= NR_CRASH;
+      cursor += sizeof("crash") - 1;
     } else {
       std::cerr << "Unrecognised argument for node-report events option: " << cursor << "\n";
       return 0;
@@ -460,7 +463,7 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
       }
       return;
     } else {
-      std::cerr << "\nWriting Node.js report to file: " << filename << "\n";
+      std::cerr << "Writing Node.js report to file: " << filename << "\n";
     }
   }
 
@@ -993,6 +996,7 @@ static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent 
     break;
   case kSignal_JS:
   case kSignal_UV:
+  case kCrashSignal:
     // Print the stack using StackTrace::StackTrace() and GetStackSample() APIs
     PrintStackFromStackTrace(out, isolate, event);
     break;
