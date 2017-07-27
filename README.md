@@ -5,11 +5,10 @@ Delivers a human-readable diagnostic summary, written to file.
 The report is intended for development, test and production
 use, to capture and preserve information for problem determination.
 It includes JavaScript and native stack traces, heap statistics,
-platform information and resource usage etc. With the report enabled,
-reports can be triggered on unhandled exceptions, fatal errors, signals
-and calls to a JavaScript API.
+platform information and resource usage etc. Reports can be triggered on
+unhandled exceptions, fatal errors, signals and calls to JavaScript APIs.
 
-Supports Node.js v4, v6 and v7 on AIX, Linux, MacOS, SmartOS and Windows.
+Supports Node.js version 4, 6 and 8 on AIX, Linux, MacOS, SmartOS and Windows.
 
 ## Usage
 
@@ -17,9 +16,9 @@ Supports Node.js v4, v6 and v7 on AIX, Linux, MacOS, SmartOS and Windows.
 npm install node-report
 node -r node-report app.js
 ```
-A report will be triggered automatically on unhandled exceptions and fatal
-error events (for example out of memory errors), and can also be triggered
-by sending a USR2 signal to a Node.js process (not supported on Windows).
+A report will be triggered automatically on unhandled exceptions, fatal errors
+(for example out of memory errors) and crashes in native code. A report can also be
+triggered by sending a USR2 signal to a Node.js process (not supported on Windows).
 
 A report can also be triggered via an API call from a JavaScript
 application.
@@ -37,7 +36,7 @@ var report_str = nodereport.getReport();
 console.log(report_str);
 ```
 The API can be used without adding the automatic exception and fatal error
-hooks and the signal handler, as follows:
+hooks and the signal handlers, as follows:
 
 ```js
 var nodereport = require('node-report/api');
@@ -95,7 +94,7 @@ Additional configuration is available using the following APIs:
 
 ```js
 var nodereport = require('node-report/api');
-nodereport.setEvents("exception+fatalerror+signal+apicall");
+nodereport.setEvents("exception+fatalerror+signal+apicall+crash");
 nodereport.setSignal("SIGUSR2|SIGQUIT");
 nodereport.setFileName("stdout|stderr|<filename>");
 nodereport.setDirectory("<full path>");
@@ -105,7 +104,7 @@ nodereport.setVerbose("yes|no");
 Configuration on module initialization is also available via environment variables:
 
 ```bash
-export NODEREPORT_EVENTS=exception+fatalerror+signal+apicall
+export NODEREPORT_EVENTS=exception+fatalerror+signal+apicall+crash
 export NODEREPORT_SIGNAL=SIGUSR2|SIGQUIT
 export NODEREPORT_FILENAME=stdout|stderr|<filename>
 export NODEREPORT_DIRECTORY=<full path>

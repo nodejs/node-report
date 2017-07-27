@@ -26,12 +26,13 @@ using v8::MaybeLocal;
 #define NR_FATALERROR 0x02
 #define NR_SIGNAL     0x04
 #define NR_APICALL    0x08
+#define NR_CRASH      0x10
 
 // Maximum file and path name lengths
 #define NR_MAXNAME 64
 #define NR_MAXPATH 1024
 
-enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript};
+enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript, kCrashSignal, kKillSignal};
 
 void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, v8::MaybeLocal<v8::Value> error);
 void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, v8::MaybeLocal<v8::Value> error, std::ostream& out);
