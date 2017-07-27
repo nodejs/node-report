@@ -1000,6 +1000,9 @@ static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent 
     // Print the stack using StackTrace::StackTrace() and GetStackSample() APIs
     PrintStackFromStackTrace(out, isolate, event);
     break;
+  case kKillSignal:
+    out << "Crash signal received from external process, no stack trace available\n";
+    break;
   }  // end switch(event)
 #endif
 }

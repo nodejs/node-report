@@ -32,7 +32,7 @@ using v8::MaybeLocal;
 #define NR_MAXNAME 64
 #define NR_MAXPATH 1024
 
-enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript, kCrashSignal};
+enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript, kCrashSignal, kKillSignal};
 
 void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, v8::MaybeLocal<v8::Value> error);
 void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, v8::MaybeLocal<v8::Value> error, std::ostream& out);

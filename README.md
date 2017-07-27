@@ -8,7 +8,7 @@ It includes JavaScript and native stack traces, heap statistics,
 platform information and resource usage etc. Reports can be triggered on
 unhandled exceptions, fatal errors, signals and calls to JavaScript APIs.
 
-Supports Node.js v4, v6 and v8 on AIX, Linux, MacOS, SmartOS and Windows.
+Supports Node.js version 4, 6 and 8 on AIX, Linux, MacOS, SmartOS and Windows.
 
 ## Usage
 

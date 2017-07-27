@@ -13,11 +13,11 @@ static void PrintStackFromStackTrace(Isolate* isolate, FILE* fp);
 static void SignalDumpAsyncCallback(uv_async_t* handle);
 inline void* ReportSignalThreadMain(void* unused);
 static int StartWatchdogThread(void* (*thread_main)(void* unused));
-static void RegisterSignalHandler(int signo, void (*handler)(int),
+static void RegisterSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*),
                                   struct sigaction* saved_sa);
 static void RestoreSignalHandler(int signo, struct sigaction* saved_sa);
-static void SignalHandler(int signo);
-static void CrashHandler(int signo);
+static void SignalHandler(int signo, siginfo_t* info, void* void_context);
+static void CrashHandler(int signo, siginfo_t* info, void* void_context);
 static void SetupSignalHandler();
 #endif
 
@@ -293,11 +293,12 @@ static void SignalDumpAsyncCallback(uv_async_t* handle) {
  *  - SetupSignalHandler() - initialisation of signal handlers and threads
  ******************************************************************************/
 // Utility function to register an OS signal handler
-static void RegisterSignalHandler(int signo, void (*handler)(int),
+static void RegisterSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*),
                                   struct sigaction* saved_sa) {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = handler;
+  sa.sa_flags = SA_SIGINFO;
+  sa.sa_sigaction = handler;
   sigfillset(&sa.sa_mask);  // mask all signals while in the handler
   sigaction(signo, &sa, saved_sa);
 }
@@ -308,7 +309,7 @@ static void RestoreSignalHandler(int signo, struct sigaction* saved_sa) {
 }
 
 // Native signal handler for triggering a report on user signal - runs on an arbitrary thread
-static void SignalHandler(int signo) {
+static void SignalHandler(int signo, siginfo_t* info, void* void_context) {
   // Check atomic for report already pending, storing the signal number
   if (__sync_val_compare_and_swap(&report_signal, 0, signo) == 0) {
     uv_sem_post(&report_semaphore);  // Hand-off to watchdog thread
@@ -316,7 +317,7 @@ static void SignalHandler(int signo) {
 }
 
 // Native signal handler for triggering a report on a crash, runs on crashing thread
-static void CrashHandler(int signo) {
+static void CrashHandler(int signo, siginfo_t* info, void* void_context) {
   // Remove node-report crash handlers in case we get a secondary crash
   RestoreSignalHandler(signo, &saved_sigsegv_sa);
   RestoreSignalHandler(signo, &saved_sigill_sa);
@@ -325,8 +326,15 @@ static void CrashHandler(int signo) {
   if (nodereport_events & NR_SIGNAL) {
     RestoreSignalHandler(nodereport_signal, &saved_user_sa);
   }
-  TriggerNodeReport(Isolate::GetCurrent(), kCrashSignal, node::signo_string(signo),
-                    __func__, nullptr, MaybeLocal<Value>());
+  if ((info->si_pid == 0) || (info->si_pid == getpid())) {
+    // Real crash, or a signal raised internally by this process
+    TriggerNodeReport(Isolate::GetCurrent(), kCrashSignal, node::signo_string(signo),
+                      __func__, nullptr, MaybeLocal<Value>());
+  } else {
+    // External crash signal sent by some other process 
+    TriggerNodeReport(Isolate::GetCurrent(), kKillSignal, node::signo_string(signo),
+                      __func__, nullptr, MaybeLocal<Value>());
+  }
   // Propagate the signal
   raise(signo);
 }
