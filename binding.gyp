@@ -2,7 +2,7 @@
   "targets": [
     {
       "target_name": "api",
-      "sources": [ "src/node_report.cc", "src/module.cc" ],
+      "sources": [ "src/node_report.cc", "src/module.cc", "src/utilities.cc" ],
       "include_dirs": [ '<!(node -e "require(\'nan\')")' ],
       "conditions": [
         ["OS=='linux'", {
