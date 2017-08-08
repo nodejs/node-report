@@ -1,5 +1,5 @@
 #include "node_report.h"
-#include <nan.h>
+
 #include <sstream>
 
 namespace nodereport {
