@@ -2,9 +2,19 @@
 #define SRC_NODE_REPORT_H_
 
 #include "nan.h"
-#ifndef _WIN32
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+
+#ifdef _WIN32
+#include <time.h>
+#else
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #endif
 
 namespace nodereport {
@@ -33,18 +43,43 @@ using v8::MaybeLocal;
 
 enum DumpEvent {kException, kFatalError, kSignal_JS, kSignal_UV, kJavaScript};
 
+#ifdef _WIN32
+typedef SYSTEMTIME TIME_TYPE;
+#else  // UNIX, OSX
+typedef struct tm TIME_TYPE;
+#endif
+
+// NODEREPORT_VERSION is defined in binding.gyp
+#if !defined(NODEREPORT_VERSION)
+#define NODEREPORT_VERSION "dev"
+#endif
+#define UNKNOWN_NODEVERSION_STRING "Unable to determine Node.js version\n"
+
+// Function declarations - functions in src/node_report.cc
 void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, v8::MaybeLocal<v8::Value> error);
 void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, v8::MaybeLocal<v8::Value> error, std::ostream& out);
 
+// Function declarations - utility functions in src/utilities.cc
 unsigned int ProcessNodeReportEvents(const char* args);
 unsigned int ProcessNodeReportSignal(const char* args);
 void ProcessNodeReportFileName(const char* args);
 void ProcessNodeReportDirectory(const char* args);
 unsigned int ProcessNodeReportVerboseSwitch(const char* args);
-
 void SetLoadTime();
 void SetVersionString(Isolate* isolate);
 void SetCommandLine();
+void reportEndpoints(uv_handle_t* h, std::ostringstream& out);
+void reportPath(uv_handle_t* h, std::ostringstream& out);
+void walkHandle(uv_handle_t* h, void* arg);
+void WriteInteger(std::ostream& out, size_t value);
+
+// Global variable declarations - definitions are in src/node-report.c
+extern char report_filename[NR_MAXNAME + 1];
+extern char report_directory[NR_MAXPATH + 1];
+extern std::string version_string;
+extern std::string commandline_string;
+extern TIME_TYPE loadtime_tm_struct;
+extern time_t load_time;
 
 // Local implementation of secure_getenv()
 inline const char* secure_getenv(const char* key) {

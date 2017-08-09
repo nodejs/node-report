@@ -1,17 +1,10 @@
 #include "node_report.h"
 #include "v8.h"
 #include "uv.h"
-#include "time.h"
 
 #include <fcntl.h>
-#include <map>
 #include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <iomanip>
-#include <iostream>
 #include <fstream>
-#include <sstream>
 
 #if !defined(_MSC_VER)
 #include <strings.h>
@@ -25,7 +18,6 @@
 #include <tchar.h>
 #include <psapi.h>
 #else
-#include <sys/time.h>
 #include <sys/resource.h>
 // Get the standard printf format macros for C99 stdint types.
 #ifndef __STDC_FORMAT_MACROS
@@ -37,12 +29,8 @@
 #if defined(__linux__) || defined(__sun)
 #include <link.h>
 #endif
-#ifdef __sun
-#include <procfs.h>
-#endif
 #ifdef _AIX
-#include <sys/ldr.h>
-#include <sys/procfs.h>
+#include <sys/ldr.h>  // ld_info structure
 #endif
 // Include execinfo.h for the native backtrace API. The API is unavailable on AIX
 // and on some Linux distributions, e.g. Alpine Linux.
@@ -52,18 +40,8 @@
 #include <sys/utsname.h>
 #endif
 
-#if !defined(NODEREPORT_VERSION)
-#define NODEREPORT_VERSION "dev"
-#endif
-
-#if !defined(UNKNOWN_NODEVERSION_STRING)
-#define UNKNOWN_NODEVERSION_STRING "Unable to determine Node.js version\n"
-#endif
-
 #ifdef __APPLE__
-// Include _NSGetArgv and _NSGetArgc for command line arguments.
-#include <crt_externs.h>
-#include <mach-o/dyld.h>
+#include <mach-o/dyld.h>  // _dyld_get_image_name()
 #endif
 
 #ifndef _WIN32
@@ -80,12 +58,6 @@ using v8::Message;
 using v8::String;
 using v8::V8;
 
-#ifdef _WIN32
-typedef SYSTEMTIME TIME_TYPE;
-#else  // UNIX, OSX
-typedef struct tm TIME_TYPE;
-#endif
-
 // Internal/static function declarations
 static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, MaybeLocal<Value> error, TIME_TYPE* time);
 static void PrintCommandLine(std::ostream& out);
@@ -101,290 +73,24 @@ static void PrintResourceUsage(std::ostream& out);
 static void PrintGCStatistics(std::ostream& out, Isolate* isolate);
 static void PrintSystemInformation(std::ostream& out, Isolate* isolate);
 static void PrintLoadedLibraries(std::ostream& out, Isolate* isolate);
-static void WriteInteger(std::ostream& out, size_t value);
 
 // Global variables
 static int seq = 0;  // sequence number for report filenames
 const char* v8_states[] = {"JS", "GC", "COMPILER", "OTHER", "EXTERNAL", "IDLE"};
 static bool report_active = false; // recursion protection
-static char report_filename[NR_MAXNAME + 1] = "";
-static char report_directory[NR_MAXPATH + 1] = ""; // defaults to current working directory
+char report_filename[NR_MAXNAME + 1] = "";
+char report_directory[NR_MAXPATH + 1] = ""; // defaults to current working directory
 std::string version_string = UNKNOWN_NODEVERSION_STRING;
 std::string commandline_string = "";
-static TIME_TYPE loadtime_tm_struct; // module load time
-static time_t load_time; // module load time absolute
+TIME_TYPE loadtime_tm_struct; // module load time
+time_t load_time; // module load time absolute
+
 
 /*******************************************************************************
- * Functions to process node-report configuration options:
- *   Trigger event selection
- *   Core dump yes/no switch
- *   Trigger signal selection
- *   Report filename
- *   Report directory
- *   Verbose mode
- ******************************************************************************/
-unsigned int ProcessNodeReportEvents(const char* args) {
-  // Parse the supplied event types
-  unsigned int event_flags = 0;
-  const char* cursor = args;
-  while (*cursor != '\0') {
-    if (!strncmp(cursor, "exception", sizeof("exception") - 1)) {
-      event_flags |= NR_EXCEPTION;
-      cursor += sizeof("exception") - 1;
-    } else if (!strncmp(cursor, "fatalerror", sizeof("fatalerror") - 1)) {
-       event_flags |= NR_FATALERROR;
-       cursor += sizeof("fatalerror") - 1;
-    } else if (!strncmp(cursor, "signal", sizeof("signal") - 1)) {
-      event_flags |= NR_SIGNAL;
-      cursor += sizeof("signal") - 1;
-    } else if (!strncmp(cursor, "apicall", sizeof("apicall") - 1)) {
-      event_flags |= NR_APICALL;
-      cursor += sizeof("apicall") - 1;
-    } else {
-      std::cerr << "Unrecognised argument for node-report events option: " << cursor << "\n";
-      return 0;
-    }
-    if (*cursor == '+') {
-      cursor++;  // Hop over the '+' separator
-    }
-  }
-  return event_flags;
-}
-
-unsigned int ProcessNodeReportSignal(const char* args) {
-#ifdef _WIN32
-  return 0; // no-op on Windows
-#else
-  if (strlen(args) == 0) {
-    std::cerr << "Missing argument for node-report signal option\n";
-  } else {
-    // Parse the supplied switch
-    if (!strncmp(args, "SIGUSR2", sizeof("SIGUSR2") - 1)) {
-      return SIGUSR2;
-    } else if (!strncmp(args, "SIGQUIT", sizeof("SIGQUIT") - 1)) {
-      return SIGQUIT;
-    } else {
-     std::cerr << "Unrecognised argument for node-report signal option: "<< args << "\n";
-    }
-  }
-  return SIGUSR2;  // Default signal is SIGUSR2
-#endif
-}
-
-void ProcessNodeReportFileName(const char* args) {
-  if (strlen(args) == 0) {
-    std::cerr << "Missing argument for node-report filename option\n";
-    return;
-  }
-  if (strlen(args) > NR_MAXNAME) {
-    std::cerr << "Supplied node-report filename too long (max " << NR_MAXNAME << " characters)\n";
-    return;
-  }
-  snprintf(report_filename, sizeof(report_filename), "%s", args);
-}
-
-void ProcessNodeReportDirectory(const char* args) {
-  if (strlen(args) == 0) {
-    std::cerr << "Missing argument for node-report directory option\n";
-    return;
-  }
-  if (strlen(args) > NR_MAXPATH) {
-    std::cerr << "Supplied node-report directory path too long (max " << NR_MAXPATH << " characters)\n";
-    return;
-  }
-  snprintf(report_directory, sizeof(report_directory), "%s", args);
-}
-
-unsigned int ProcessNodeReportVerboseSwitch(const char* args) {
-  if (strlen(args) == 0) {
-    std::cerr << "Missing argument for node-report verbose switch option\n";
-    return 0;
-  }
-  // Parse the supplied switch
-  if (!strncmp(args, "yes", sizeof("yes") - 1) || !strncmp(args, "true", sizeof("true") - 1)) {
-    return 1;
-  } else if (!strncmp(args, "no", sizeof("no") - 1) || !strncmp(args, "false", sizeof("false") - 1)) {
-    return 0;
-  } else {
-    std::cerr << "Unrecognised argument for node-report verbose switch option: " << args << "\n";
-  }
-  return 0;  // Default is verbose mode off
-}
-
-void SetVersionString(Isolate* isolate) {
-  // Catch anything thrown and gracefully return
-  Nan::TryCatch trycatch;
-  version_string = UNKNOWN_NODEVERSION_STRING;
-
-  // Retrieve the process object
-  v8::Local<v8::String> process_prop;
-  if (!Nan::New<v8::String>("process").ToLocal(&process_prop)) return;
-  v8::Local<v8::Object> global_obj = isolate->GetCurrentContext()->Global();
-  v8::Local<v8::Value> process_value;
-  if (!Nan::Get(global_obj, process_prop).ToLocal(&process_value)) return;
-  if (!process_value->IsObject()) return;
-  v8::Local<v8::Object> process_obj = process_value.As<v8::Object>();
-
-  // Get process.version
-  v8::Local<v8::String> version_prop;
-  if (!Nan::New<v8::String>("version").ToLocal(&version_prop)) return;
-  v8::Local<v8::Value> version;
-  if (!Nan::Get(process_obj, version_prop).ToLocal(&version)) return;
-
-  // e.g. Node.js version: v6.9.1
-  if (version->IsString()) {
-    Nan::Utf8String node_version(version);
-    version_string = "Node.js version: ";
-    version_string += *node_version;
-    version_string += "\n";
-  }
-
-  // Get process.versions
-  v8::Local<v8::String> versions_prop;
-  if (!Nan::New<v8::String>("versions").ToLocal(&versions_prop)) return;
-  v8::Local<v8::Value> versions_value;
-  if (!Nan::Get(process_obj, versions_prop).ToLocal(&versions_value)) return;
-  if (!versions_value->IsObject()) return;
-  v8::Local<v8::Object> versions_obj = versions_value.As<v8::Object>();
-
-  // Get component names and versions from process.versions
-  v8::Local<v8::Array> components;
-  if (!Nan::GetOwnPropertyNames(versions_obj).ToLocal(&components)) return;
-  v8::Local<v8::Object> components_obj = components.As<v8::Object>();
-  std::map<std::string, std::string> comp_versions;
-  uint32_t total_components = (*components)->Length();
-  for (uint32_t i = 0; i < total_components; i++) {
-    v8::Local<v8::Value> name_value;
-    if (!Nan::Get(components_obj, i).ToLocal(&name_value)) continue;
-    v8::Local<v8::Value> version_value;
-    if (!Nan::Get(versions_obj, name_value).ToLocal(&version_value)) continue;
-
-    Nan::Utf8String component_name(name_value);
-    Nan::Utf8String component_version(version_value);
-    if (*component_name == nullptr || *component_version == nullptr) continue;
-
-    // Don't duplicate the Node.js version
-    if (!strcmp("node", *component_name)) {
-      if (version_string == UNKNOWN_NODEVERSION_STRING) {
-        version_string = "Node.js version: v";
-        version_string += *component_version;
-        version_string += "\n";
-      }
-    } else {
-      comp_versions[*component_name] = *component_version;
-    }
-  }
-
-  // Format sorted component versions surrounded by (), wrapped
-  // e.g.
-  // (ares: 1.10.1-DEV, http_parser: 2.7.0, icu: 57.1, modules: 48,
-  //  openssl: 1.0.2j, uv: 1.9.1, v8: 5.1.281.84, zlib: 1.2.8)
-  const size_t wrap = 80;
-  version_string += "(";
-  const char* separator = "";
-  std::string versions = "";
-  for (auto it : comp_versions) {
-    std::string comp_version_string = it.first;
-    comp_version_string += ": ";
-    comp_version_string += it.second;
-    versions += separator;
-    if (wrap - (versions.length() % wrap) < comp_version_string.length()) {
-      versions += "\n ";
-    }
-    separator = ", ";
-    versions += comp_version_string;
-  }
-  version_string += versions + ")\n";
-}
-
-/*******************************************************************************
- * Function to save the node-report module load time value
- *******************************************************************************/
-void SetLoadTime() {
-#ifdef _WIN32
-  GetLocalTime(&loadtime_tm_struct);
-#else  // UNIX, OSX
-  struct timeval time_val;
-  gettimeofday(&time_val, nullptr);
-  localtime_r(&time_val.tv_sec, &loadtime_tm_struct);
-#endif
-  time(&load_time);
-}
-
-/*******************************************************************************
- * Function to save the process command line
- *******************************************************************************/
-void SetCommandLine() {
-#ifdef __linux__
-  // Read the command line from /proc/self/cmdline
-  char buf[64];
-  FILE* cmdline_fd = fopen("/proc/self/cmdline", "r");
-  if (cmdline_fd == nullptr) {
-    return;
-  }
-  commandline_string = "";
-  int bytesread = fread(buf, 1, sizeof(buf), cmdline_fd);
-  while (bytesread > 0) {
-    for (int i = 0; i < bytesread; i++) {
-      // Arguments are null separated.
-      if (buf[i] == '\0') {
-        commandline_string += " ";
-      } else {
-        commandline_string += buf[i];
-      }
-    }
-    bytesread = fread(buf, 1, sizeof(buf), cmdline_fd);
-  }
-  fclose(cmdline_fd);
-#elif __APPLE__
-  char **argv = *_NSGetArgv();
-  int argc = *_NSGetArgc();
-
-  commandline_string = "";
-  std::string separator = "";
-  for (int i = 0; i < argc; i++) {
-    commandline_string += separator + argv[i];
-    separator = " ";
-  }
-#elif defined(_AIX) || defined(__sun)
-  // Read the command line from /proc/self/cmdline
-  char procbuf[64];
-  snprintf(procbuf, sizeof(procbuf), "/proc/%d/psinfo", getpid());
-  FILE* psinfo_fd = fopen(procbuf, "r");
-  if (psinfo_fd == nullptr) {
-    return;
-  }
-  psinfo_t info;
-  int bytesread = fread(&info, 1, sizeof(psinfo_t), psinfo_fd);
-  fclose(psinfo_fd);
-  if (bytesread == sizeof(psinfo_t)) {
-    commandline_string = "";
-    std::string separator = "";
-#ifdef _AIX
-    char **argv = *((char ***) info.pr_argv);
-#else
-    char **argv = ((char **) info.pr_argv);
-#endif
-    for (auto i = 0; i < info.pr_argc && argv[i] != nullptr; i++) {
-      commandline_string += separator + argv[i];
-      separator = " ";
-    }
-  }
-#elif _WIN32
-  commandline_string = GetCommandLine();
-#endif
-}
-
-/*******************************************************************************
- * Main API function to write a report to file.
- *
- * Parameters:
- *   Isolate* isolate
- *   DumpEvent event
- *   const char* message
- *   const char* location
- *   char* name - in/out - returns the report filename
- *   MaybeLocal<Value> error - JavaScript Error object.
+ * External function to trigger a node report, writing to file. 
+ * 
+ * The 'name' parameter is in/out: an input filename is used if supplied, and
+ * the actual filename is returned.
  ******************************************************************************/
 void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* name, MaybeLocal<Value> error) {
   // Recursion check for report in progress, bail out
@@ -481,6 +187,10 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
 
 }
 
+/*******************************************************************************
+ * External function to trigger a node report, writing to a supplied stream.
+ *
+ *******************************************************************************/
 void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, MaybeLocal<Value> error, std::ostream& out) {
   // Obtain the current time and the pid (platform dependent)
   TIME_TYPE tm_struct;
@@ -494,238 +204,10 @@ void GetNodeReport(Isolate* isolate, DumpEvent event, const char* message, const
   WriteNodeReport(isolate, event, message, location, nullptr, out, error, &tm_struct);
 }
 
-static void reportEndpoints(uv_handle_t* h, std::ostringstream& out) {
-  struct sockaddr_storage addr_storage;
-  struct sockaddr* addr = (sockaddr*)&addr_storage;
-  char hostbuf[NI_MAXHOST];
-  char portbuf[NI_MAXSERV];
-  uv_any_handle* handle = (uv_any_handle*)h;
-  int addr_size = sizeof(addr_storage);
-  int rc = -1;
-
-  switch (h->type) {
-    case UV_UDP: {
-      rc = uv_udp_getsockname(&(handle->udp), addr, &addr_size);
-      break;
-    }
-    case UV_TCP: {
-      rc = uv_tcp_getsockname(&(handle->tcp), addr, &addr_size);
-      break;
-    }
-    default: break;
-  }
-  if (rc == 0) {
-    // getnameinfo will format host and port and handle IPv4/IPv6.
-    rc = getnameinfo(addr, addr_size, hostbuf, sizeof(hostbuf), portbuf,
-                     sizeof(portbuf), NI_NUMERICSERV);
-    if (rc == 0) {
-      out << std::string(hostbuf) << ":" << std::string(portbuf);
-    }
-
-    if (h->type == UV_TCP) {
-      // Get the remote end of the connection.
-      rc = uv_tcp_getpeername(&(handle->tcp), addr, &addr_size);
-      if (rc == 0) {
-        rc = getnameinfo(addr, addr_size, hostbuf, sizeof(hostbuf), portbuf,
-                         sizeof(portbuf), NI_NUMERICSERV);
-        if (rc == 0) {
-          out << " connected to ";
-          out << std::string(hostbuf) << ":" << std::string(portbuf);
-        }
-      } else if (rc == UV_ENOTCONN) {
-        out << " (not connected)";
-      }
-    }
-  }
-}
-
-static void reportPath(uv_handle_t* h, std::ostringstream& out) {
-  char *buffer = nullptr;
-  int rc = -1;
-  size_t size = 0;
-  uv_any_handle* handle = (uv_any_handle*)h;
-  // First call to get required buffer size.
-  switch (h->type) {
-    case UV_FS_EVENT: {
-      rc = uv_fs_event_getpath(&(handle->fs_event), buffer, &size);
-      break;
-    }
-    case UV_FS_POLL: {
-      rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer, &size);
-      break;
-    }
-    default: break;
-  }
-  if (rc == UV_ENOBUFS) {
-    buffer = static_cast<char *>(malloc(size));
-    switch (h->type) {
-      case UV_FS_EVENT: {
-        rc = uv_fs_event_getpath(&(handle->fs_event), buffer, &size);
-        break;
-      }
-      case UV_FS_POLL: {
-        rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer, &size);
-        break;
-      }
-      default: break;
-    }
-    if (rc == 0) {
-      // buffer is not null terminated.
-      std::string name(buffer, size);
-      out << "filename: " << name;
-    }
-    free(buffer);
-  }
-}
-
-static void walkHandle(uv_handle_t* h, void* arg) {
-  std::string type;
-  std::ostringstream data;
-  std::ostream* out = reinterpret_cast<std::ostream*>(arg);
-  uv_any_handle* handle = (uv_any_handle*)h;
-
-  // List all the types so we get a compile warning if we've missed one,
-  // (using default: supresses the compiler warning).
-  switch (h->type) {
-    case UV_UNKNOWN_HANDLE: type = "unknown"; break;
-    case UV_ASYNC: type = "async"; break;
-    case UV_CHECK: type = "check"; break;
-    case UV_FS_EVENT: {
-      type = "fs_event";
-      reportPath(h, data);
-      break;
-    }
-    case UV_FS_POLL: {
-      type = "fs_poll";
-      reportPath(h, data);
-      break;
-    }
-    case UV_HANDLE: type = "handle"; break;
-    case UV_IDLE: type = "idle"; break;
-    case UV_NAMED_PIPE: type = "pipe"; break;
-    case UV_POLL: type = "poll"; break;
-    case UV_PREPARE: type = "prepare"; break;
-    case UV_PROCESS: {
-      type = "process";
-      data << "pid: " << handle->process.pid;
-      break;
-    }
-    case UV_STREAM: type = "stream"; break;
-    case UV_TCP: {
-      type = "tcp";
-      reportEndpoints(h, data);
-      break;
-    }
-    case UV_TIMER: {
-      // TODO timeout/due is not actually public however it is present
-      // in all current versions of libuv. Once uv_timer_get_timeout is
-      // in a supported level of libuv we should test for it with dlsym
-      // and use it instead, in case timeout moves in the future.
-#ifdef _WIN32
-      uint64_t due = handle->timer.due;
-#else
-      uint64_t due = handle->timer.timeout;
-#endif
-      uint64_t now = uv_now(handle->timer.loop);
-      type = "timer";
-      data << "repeat: " << uv_timer_get_repeat(&(handle->timer));
-      if (due > now) {
-          data << ", timeout in: " << (due - now) << " ms";
-      } else {
-          data << ", timeout expired: " << (now - due) << " ms ago";
-      }
-      break;
-    }
-    case UV_TTY: {
-      int height, width, rc;
-      type = "tty";
-      rc = uv_tty_get_winsize(&(handle->tty), &width, &height);
-      if (rc == 0) {
-        data << "width: " << width << ", height: " << height;
-      }
-      break;
-    }
-    case UV_UDP: {
-      type = "udp";
-      reportEndpoints(h, data);
-      break;
-    }
-    case UV_SIGNAL: {
-      // SIGWINCH is used by libuv so always appears.
-      // See http://docs.libuv.org/en/v1.x/signal.html
-      type = "signal";
-      data << "signum: " << handle->signal.signum
-      // node::signo_string() is not exported by Node.js on Windows.
-#ifndef _WIN32
-           << " (" << node::signo_string(handle->signal.signum) << ")"
-#endif
-           ;
-      break;
-    }
-    case UV_FILE: type = "file"; break;
-    // We shouldn't see "max" type
-    case UV_HANDLE_TYPE_MAX : type = "max"; break;
-  }
-
-  if (h->type == UV_TCP || h->type == UV_UDP
-#ifndef _WIN32
-      || h->type == UV_NAMED_PIPE
-#endif
-      ) {
-    // These *must* be 0 or libuv will set the buffer sizes to the non-zero
-    // values they contain.
-    int send_size = 0;
-    int recv_size = 0;
-    if (h->type == UV_TCP || h->type == UV_UDP) {
-      data << ", ";
-    }
-    uv_send_buffer_size(h, &send_size);
-    uv_recv_buffer_size(h, &recv_size);
-    data << "send buffer size: " << send_size
-         << ", recv buffer size: " << recv_size;
-  }
-
-  if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY ||
-      h->type == UV_UDP || h->type == UV_POLL) {
-    uv_os_fd_t fd_v;
-    uv_os_fd_t* fd = &fd_v;
-    int rc  = uv_fileno(h, fd);
-    // uv_os_fd_t is an int on Unix and HANDLE on Windows.
-#ifndef _WIN32
-    if (rc == 0) {
-      switch (fd_v) {
-      case 0:
-        data << ", stdin"; break;
-      case 1:
-        data << ", stdout"; break;
-      case 2:
-        data << ", stderr"; break;
-      default:
-        data << ", file descriptor: " << static_cast<int>(fd_v);
-        break;
-      }
-    }
-#endif
-  }
-
-  if (h->type == UV_TCP || h->type == UV_NAMED_PIPE || h->type == UV_TTY) {
-
-    data << ", write queue size: "
-         << handle->stream.write_queue_size;
-    data << (uv_is_readable(&handle->stream) ? ", readable" : "")
-         << (uv_is_writable(&handle->stream) ? ", writable": "");
-
-  }
-
-  *out << std::left << "[" << (uv_has_ref(h) ? 'R' : '-')
-       << (uv_is_active(h) ? 'A' : '-') << "]   " << std::setw(10) << type
-       << std::internal << std::setw(2 + 2 * sizeof(void*));
-  char prev_fill = out->fill('0');
-  *out << static_cast<void*>(h) << std::left;
-  out->fill(prev_fill);
-  *out << "  " << std::left << data.str() << std::endl;
-}
-
+/*******************************************************************************
+ * Internal function to coordinate and write the various sections of the node
+ * report to the supplied stream
+ *******************************************************************************/
 static void WriteNodeReport(Isolate* isolate, DumpEvent event, const char* message, const char* location, char* filename, std::ostream &out, MaybeLocal<Value> error, TIME_TYPE* tm_struct) {
 
 #ifdef _WIN32
@@ -1000,6 +482,10 @@ static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent 
 #endif
 }
 
+/*******************************************************************************
+ * Function to print a JavaScript stack from an error object
+ *
+ ******************************************************************************/
 static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, MaybeLocal<Value> error) {
   if (error.IsEmpty() || !error.ToLocalChecked()->IsNativeError()) {
     return;
@@ -1538,35 +1024,6 @@ static void PrintLoadedLibraries(std::ostream& out, Isolate* isolate) {
   // Release the handle to the process.
   CloseHandle(process_handle);
 #endif
-}
-
-/*******************************************************************************
- * Utility function to print out integer values with commas for readability.
- *
- ******************************************************************************/
-static void WriteInteger(std::ostream& out, size_t value) {
-  int thousandsStack[8];  // Sufficient for max 64-bit number
-  int stackTop = 0;
-  int i;
-  char buf[64];
-  size_t workingValue = value;
-
-  do {
-    thousandsStack[stackTop++] = workingValue % 1000;
-    workingValue /= 1000;
-  } while (workingValue != 0);
-
-  for (i = stackTop-1; i >= 0; i--) {
-    if (i == (stackTop-1)) {
-      out << thousandsStack[i];
-    } else {
-      snprintf(buf, sizeof(buf), "%03u", thousandsStack[i]);
-      out << buf;
-    }
-    if (i > 0) {
-      out << ",";
-    }
-  }
 }
 
 }  // namespace nodereport
