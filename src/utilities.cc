@@ -1,7 +1,5 @@
 #include "node_report.h"
 
-#include <map>
-
 #ifdef __APPLE__
 #include <crt_externs.h>  // _NSGetArgv() and _NSGetArgc()
 #endif
@@ -161,7 +159,8 @@ void SetVersionString(Isolate* isolate) {
   v8::Local<v8::Array> components;
   if (!Nan::GetOwnPropertyNames(versions_obj).ToLocal(&components)) return;
   v8::Local<v8::Object> components_obj = components.As<v8::Object>();
-  std::map<std::string, std::string> comp_versions;
+  std::string comp_versions = "(";
+  size_t wrap = 0;
   uint32_t total_components = (*components)->Length();
   for (uint32_t i = 0; i < total_components; i++) {
     v8::Local<v8::Value> name_value;
@@ -173,38 +172,33 @@ void SetVersionString(Isolate* isolate) {
     Nan::Utf8String component_version(version_value);
     if (*component_name == nullptr || *component_version == nullptr) continue;
 
-    // Don't duplicate the Node.js version
     if (!strcmp("node", *component_name)) {
+      // Put the Node.js version on the first line, if we didn't already have it
       if (version_string == UNKNOWN_NODEVERSION_STRING) {
         version_string = "Node.js version: v";
         version_string += *component_version;
         version_string += "\n";
       }
     } else {
-      comp_versions[*component_name] = *component_version;
+      // Other component versions follow, comma separated, wrapped at 80 characters
+      std::string comp_version_string = *component_name;
+      comp_version_string += ": ";
+      comp_version_string += *component_version;
+      if (wrap == 0) {
+        wrap = comp_version_string.length();
+      } else {
+        wrap += comp_version_string.length() + 2;  // includes separator
+        if (wrap > 80) {
+          comp_versions += ",\n ";
+          wrap = comp_version_string.length();
+        } else {
+          comp_versions += ", ";
+        }
+      }
+      comp_versions += comp_version_string;
     }
   }
-
-  // Format sorted component versions surrounded by (), wrapped
-  // e.g.
-  // (ares: 1.10.1-DEV, http_parser: 2.7.0, icu: 57.1, modules: 48,
-  //  openssl: 1.0.2j, uv: 1.9.1, v8: 5.1.281.84, zlib: 1.2.8)
-  const size_t wrap = 80;
-  version_string += "(";
-  const char* separator = "";
-  std::string versions = "";
-  for (auto it : comp_versions) {
-    std::string comp_version_string = it.first;
-    comp_version_string += ": ";
-    comp_version_string += it.second;
-    versions += separator;
-    if (wrap - (versions.length() % wrap) < comp_version_string.length()) {
-      versions += "\n ";
-    }
-    separator = ", ";
-    versions += comp_version_string;
-  }
-  version_string += versions + ")\n";
+  version_string += comp_versions + ")\n";
 }
 
 /*******************************************************************************
