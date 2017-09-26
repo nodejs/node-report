@@ -1,3 +1,15 @@
+2017-09-26, Version 2.2.1
+=========================
+
+ * Update README to show support for Node.js 8 (Richard Chamberlain)
+
+ * Remove use of std::map to sort version strings (Richard Chamberlain)
+
+ * Restructure node_report.cc, move functions to utilities.cc (Richard Chamberlain)
+
+ * Fix compile and linking issues on Alpine Linux (Richard Chamberlain)
+
+
 2017-05-30, Version 2.2.0
 =========================
 
