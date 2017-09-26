@@ -797,6 +797,7 @@ static void PrintResourceUsage(std::ostream& out) {
   }
 #ifdef RUSAGE_THREAD
   out << "\n\nEvent loop thread resource usage:";
+  memset(&stats, 0, sizeof(stats));
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
 #if defined(__APPLE__) || defined(_AIX)
     snprintf( buf, sizeof(buf), "%ld.%06d", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
@@ -809,13 +810,32 @@ static void PrintResourceUsage(std::ostream& out) {
     snprintf( buf, sizeof(buf), "%ld.%06ld", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
     out << "\n  Kernel mode CPU: " << buf << " secs";
 #endif
-    cpu_abs = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec + stats.ru_stime.tv_sec + 0.000001 *  stats.ru_stime.tv_usec;
+    cpu_abs = stats.ru_utime.tv_sec + 0.000001 * stats.ru_utime.tv_usec + stats.ru_stime.tv_sec + 0.000001 * stats.ru_stime.tv_usec;
     cpu_percentage = (cpu_abs / uptime) * 100.0;
     out << "\n  Average CPU Consumption : " << cpu_percentage << "%";
     out << "\n  Filesystem activity: " << stats.ru_inblock << " reads "
         << stats.ru_oublock << " writes";
   }
-#endif
+#elif defined(__APPLE__)
+  // Currently RUSAGE_THREAD is not currently supported on Mac.
+  mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
+  mach_port_t thread = pthread_mach_thread_np(pthread_self());
+  thread_basic_info thr_info;
+
+  kern_return_t rc = thread_info(thread, THREAD_BASIC_INFO, (thread_info_t) &thr_info, &count);
+
+  if (rc == KERN_SUCCESS) {
+    out << "\n\nEvent loop thread resource usage:";
+    snprintf( buf, sizeof(buf), "%d.%06d", thr_info.user_time.seconds, thr_info.user_time.microseconds);
+    out << "\n  User mode CPU: " << buf << " secs";
+    snprintf( buf, sizeof(buf), "%d.%06d", thr_info.system_time.seconds, thr_info.system_time.microseconds);
+    out << "\n  Kernel mode CPU: " << buf << " secs";
+    cpu_abs = thr_info.user_time.seconds + 0.000001 * thr_info.user_time.microseconds
+        + thr_info.system_time.seconds + 0.000001 * thr_info.system_time.microseconds;
+    cpu_percentage = (cpu_abs / uptime) * 100.0;
+    out << "\n  Average CPU Consumption : " << cpu_percentage << "%";
+  }
+#endif // RUSAGE_THREAD
   out << std::endl;
 }
 #endif
