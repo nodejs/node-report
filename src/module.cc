@@ -245,7 +245,7 @@ static void SignalDumpInterruptCallback(Isolate* isolate, void* data) {
         fprintf(stdout, "node-report: SignalDumpInterruptCallback triggering report\n");
       }
       TriggerNodeReport(isolate, kSignal_JS,
-                        node::signo_string(report_signal), __func__, nullptr, MaybeLocal<Value>());
+                        SignoString(report_signal), __func__, nullptr, MaybeLocal<Value>());
     }
     report_signal = 0;
   }
@@ -260,7 +260,7 @@ static void SignalDumpAsyncCallback(uv_async_t* handle) {
         fprintf(stdout, "node-report: SignalDumpAsyncCallback triggering NodeReport\n");
       }
       TriggerNodeReport(Isolate::GetCurrent(), kSignal_UV,
-                        node::signo_string(report_signal), __func__, nullptr, MaybeLocal<Value>());
+                        SignoString(report_signal), __func__, nullptr, MaybeLocal<Value>());
     }
     report_signal = 0;
   }
@@ -327,7 +327,7 @@ inline void* ReportSignalThreadMain(void* unused) {
   for (;;) {
     uv_sem_wait(&report_semaphore);
     if (nodereport_verbose) {
-      fprintf(stdout, "node-report: signal %s received\n", node::signo_string(report_signal));
+      fprintf(stdout, "node-report: signal %s received\n", SignoString(report_signal));
     }
     uv_mutex_lock(&node_isolate_mutex);
     if (auto isolate = node_isolate) {
