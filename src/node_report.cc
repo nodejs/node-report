@@ -797,7 +797,7 @@ static void PrintResourceUsage(std::ostream& out) {
   }
 #ifdef RUSAGE_THREAD
   out << "\n\nEvent loop thread resource usage:";
-  memset(&stats, 1, sizeof(stats));
+  memset(&stats, 0, sizeof(stats));
   if (getrusage(RUSAGE_THREAD, &stats) == 0) {
 #if defined(__APPLE__) || defined(_AIX)
     snprintf( buf, sizeof(buf), "%ld.%06d", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
@@ -817,6 +817,7 @@ static void PrintResourceUsage(std::ostream& out) {
         << stats.ru_oublock << " writes";
   }
 #elif defined(__APPLE__)
+  // Currently RUSAGE_THREAD is not currently supported on Mac.
   mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
   mach_port_t thread = pthread_mach_thread_np(pthread_self());
   thread_basic_info thr_info;
