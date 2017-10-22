@@ -32,7 +32,7 @@ The content of a report can also be returned as a JavaScript string via an
 API call from a JavaScript application.
 
 ```js
-var nodereport = require('nodereport');
+var nodereport = require('node-report');
 var report_str = nodereport.getReport();
 console.log(report_str);
 ```
