@@ -417,7 +417,10 @@ void walkHandle(uv_handle_t* h, void* arg) {
       // in all current versions of libuv. Once uv_timer_get_timeout is
       // in a supported level of libuv we should test for it with dlsym
       // and use it instead, in case timeout moves in the future.
-#ifdef _WIN32
+      //
+      // On Windows in libuv 1.22 and later the `due` member was renamed
+      // to `timeout` for consistency with the other platforms.
+#if defined(_WIN32) && (UV_VERSION_HEX < ((1 << 16) | (22 << 8)))
       uint64_t due = handle->timer.due;
 #else
       uint64_t due = handle->timer.timeout;
