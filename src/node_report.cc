@@ -509,7 +509,11 @@ static void PrintJavaScriptErrorStack(std::ostream& out, Isolate* isolate, Maybe
   }
   // Print the stack trace, samples are not available as the exception isn't from the current stack.
   for (int i = 0; i < stack->GetFrameCount(); i++) {
-    PrintStackFrame(out, isolate, stack->GetFrame(i), i, nullptr);
+    PrintStackFrame(out, isolate, stack->GetFrame(
+#if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION >= 7)
+                                                  isolate,
+#endif
+                                                  i), i, nullptr);
   }
 }
 
@@ -545,9 +549,17 @@ static void PrintStackFromStackTrace(std::ostream& out, Isolate* isolate, DumpEv
   // Print the stack trace, adding in the pc values from GetStackSample() if available
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     if (static_cast<size_t>(i) < info.frames_count) {
-      PrintStackFrame(out, isolate, stack->GetFrame(i), i, samples[i]);
+      PrintStackFrame(out, isolate, stack->GetFrame(
+#if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION >= 7)
+                                                    isolate,
+#endif
+                                                    i), i, samples[i]);
     } else {
-      PrintStackFrame(out, isolate, stack->GetFrame(i), i, nullptr);
+      PrintStackFrame(out, isolate, stack->GetFrame(
+#if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION >= 7)
+                                                    isolate,
+#endif
+                                                    i), i, nullptr);
     }
   }
 }
