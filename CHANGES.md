@@ -1,3 +1,19 @@
+2019-01-22, Version 2.2.2
+=========================
+
+ * Fix use of deprecated methods removed in V8 7.0 (Richard Lau)
+
+ * Fix build on Windows with libuv 1.22 and later (Richard Lau)
+
+ * Rename LICENCE.md to LICENSE.md (Julian Alimin)
+
+ * Update README.md to correct code example (Manusaporn Treerungroj)
+
+ * Add event loop thread times to node-report on OSX, which doesn't support RUSAGE_THREAD. (Howard Hellyer)
+
+ * Replace node::signo_string with local implementation (Richard Chamberlain)
+
+
 2017-09-26, Version 2.2.1
 =========================
 
