@@ -11,7 +11,7 @@
     "node": ">=4.0.0"
   },
   "dependencies": {
-    "nan": "^2.3.5"
+    "nan": "^2.12.1"
   },
   "license": "MIT",
   "contributors": [
@@ -24,6 +24,6 @@
     "url": "https://github.com/nodejs/node-report/issues"
   },
   "devDependencies": {
-    "tap": "^8.0.0"
+    "tap": "~12.4.1"
   }
 }
