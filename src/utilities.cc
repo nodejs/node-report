@@ -282,13 +282,36 @@ void SetCommandLine() {
 }
 
 /*******************************************************************************
+ * Utility function to format socket information.
+ *******************************************************************************/
+void reportEndpoint(uv_handle_t* h, struct sockaddr* addr, const char* prefix,
+                    std::ostringstream& out) {
+  uv_getnameinfo_t endpoint;
+  if (uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
+    out << prefix << endpoint.host << ":" << endpoint.service;
+  } else {
+    char host[INET6_ADDRSTRLEN];
+    const int family = addr->sa_family;
+    const void* src = family == AF_INET ?
+                      static_cast<void*>(
+                        &(reinterpret_cast<sockaddr_in*>(addr)->sin_addr)) :
+                      static_cast<void*>(
+                        &(reinterpret_cast<sockaddr_in6*>(addr)->sin6_addr));
+    if (uv_inet_ntop(family, src, host, sizeof(host)) == 0) {
+      const int port = ntohs(family == AF_INET ?
+                             reinterpret_cast<sockaddr_in*>(addr)->sin_port :
+                             reinterpret_cast<sockaddr_in6*>(addr)->sin6_port);
+      out << prefix << host << ":" << port;
+    }
+  }
+}
+
+/*******************************************************************************
  * Utility function to format libuv socket information.
  *******************************************************************************/
 void reportEndpoints(uv_handle_t* h, std::ostringstream& out) {
   struct sockaddr_storage addr_storage;
   struct sockaddr* addr = (sockaddr*)&addr_storage;
-  char hostbuf[NI_MAXHOST];
-  char portbuf[NI_MAXSERV];
   uv_any_handle* handle = (uv_any_handle*)h;
   int addr_size = sizeof(addr_storage);
   int rc = -1;
@@ -305,23 +328,13 @@ void reportEndpoints(uv_handle_t* h, std::ostringstream& out) {
     default: break;
   }
   if (rc == 0) {
-    // getnameinfo will format host and port and handle IPv4/IPv6.
-    rc = getnameinfo(addr, addr_size, hostbuf, sizeof(hostbuf), portbuf,
-                     sizeof(portbuf), NI_NUMERICSERV);
-    if (rc == 0) {
-      out << std::string(hostbuf) << ":" << std::string(portbuf);
-    }
+    reportEndpoint(h, addr, "", out);
 
     if (h->type == UV_TCP) {
       // Get the remote end of the connection.
       rc = uv_tcp_getpeername(&(handle->tcp), addr, &addr_size);
       if (rc == 0) {
-        rc = getnameinfo(addr, addr_size, hostbuf, sizeof(hostbuf), portbuf,
-                         sizeof(portbuf), NI_NUMERICSERV);
-        if (rc == 0) {
-          out << " connected to ";
-          out << std::string(hostbuf) << ":" << std::string(portbuf);
-        }
+        reportEndpoint(h, addr, " connected to ", out);
       } else if (rc == UV_ENOTCONN) {
         out << " (not connected)";
       }
