@@ -1,3 +1,11 @@
+2019-03-05, Version 2.2.3
+=========================
+
+ * Fix CI failures on ubuntu1804 (Richard Lau)
+
+ * chore: update dependencies (Richard Lau)
+
+
 2019-01-22, Version 2.2.2
 =========================
 
