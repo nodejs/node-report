@@ -212,7 +212,11 @@ static void PrintStackFromStackTrace(Isolate* isolate, FILE* fp) {
                                                           StackTrace::kDetailed);
   // Print the JavaScript function name and source information for each frame
   for (int i = 0; i < stack->GetFrameCount(); i++) {
-    Local<StackFrame> frame = stack->GetFrame(i);
+    Local<StackFrame> frame = stack->GetFrame(
+#if defined(V8_MAJOR_VERSION) && (V8_MAJOR_VERSION >= 7)
+                                              isolate,
+#endif
+                                              i);
     Nan::Utf8String fn_name_s(frame->GetFunctionName());
     Nan::Utf8String script_name(frame->GetScriptName());
     const int line_number = frame->GetLineNumber();
