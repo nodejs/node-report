@@ -1,3 +1,9 @@
+2019-03-17, Version 2.2.4
+=========================
+
+ * Fix use of deprecated methods removed in V8 7.0 (Richard Lau)
+
+
 2019-03-05, Version 2.2.3
 =========================
 
