@@ -47,7 +47,7 @@ extern std::string commandline_string;
  * External JavaScript API for triggering a report
  *
  ******************************************************************************/
-NAN_METHOD(TriggerReport) {
+NAN_METHOD(triggerReport) {
   Nan::HandleScope scope;
   v8::Isolate* isolate = info.GetIsolate();
   char filename[NR_MAXNAME + 1] = "";
@@ -81,7 +81,7 @@ NAN_METHOD(TriggerReport) {
  * External JavaScript API for returning a report
  *
  ******************************************************************************/
-NAN_METHOD(GetReport) {
+NAN_METHOD(getReport) {
   Nan::HandleScope scope;
   v8::Isolate* isolate = info.GetIsolate();
   std::ostringstream out;
@@ -100,7 +100,7 @@ NAN_METHOD(GetReport) {
  * External JavaScript APIs for node-report configuration
  *
  ******************************************************************************/
-NAN_METHOD(SetEvents) {
+NAN_METHOD(setEvents) {
   Nan::Utf8String parameter(info[0]);
   v8::Isolate* isolate = info.GetIsolate();
   unsigned int previous_events = nodereport_events; // save previous settings
@@ -132,7 +132,7 @@ NAN_METHOD(SetEvents) {
   }
 #endif
 }
-NAN_METHOD(SetSignal) {
+NAN_METHOD(setSignal) {
 #ifndef _WIN32
   Nan::Utf8String parameter(info[0]);
   unsigned int previous_signal = nodereport_signal; // save previous setting
@@ -145,15 +145,15 @@ NAN_METHOD(SetSignal) {
   }
 #endif
 }
-NAN_METHOD(SetFileName) {
+NAN_METHOD(setFileName) {
   Nan::Utf8String parameter(info[0]);
   ProcessNodeReportFileName(*parameter);
 }
-NAN_METHOD(SetDirectory) {
+NAN_METHOD(setDirectory) {
   Nan::Utf8String parameter(info[0]);
   ProcessNodeReportDirectory(*parameter);
 }
-NAN_METHOD(SetVerbose) {
+NAN_METHOD(setVerbose) {
   Nan::Utf8String parameter(info[0]);
   nodereport_verbose = ProcessNodeReportVerboseSwitch(*parameter);
 }
@@ -375,7 +375,7 @@ static void SetupSignalHandler() {
  * Native module initializer function, called when the module is require'd
  *
  ******************************************************************************/
-void Initialize(v8::Local<v8::Object> exports) {
+NAN_MODULE_INIT(Initialize) {
   v8::Isolate* isolate = Isolate::GetCurrent();
   node_isolate = isolate;
 
@@ -426,20 +426,13 @@ void Initialize(v8::Local<v8::Object> exports) {
   }
 #endif
 
-  exports->Set(Nan::New("triggerReport").ToLocalChecked(),
-               Nan::New<v8::FunctionTemplate>(TriggerReport)->GetFunction());
-  exports->Set(Nan::New("getReport").ToLocalChecked(),
-               Nan::New<v8::FunctionTemplate>(GetReport)->GetFunction());
-  exports->Set(Nan::New("setEvents").ToLocalChecked(),
-               Nan::New<v8::FunctionTemplate>(SetEvents)->GetFunction());
-  exports->Set(Nan::New("setSignal").ToLocalChecked(),
-               Nan::New<v8::FunctionTemplate>(SetSignal)->GetFunction());
-  exports->Set(Nan::New("setFileName").ToLocalChecked(),
-               Nan::New<v8::FunctionTemplate>(SetFileName)->GetFunction());
-  exports->Set(Nan::New("setDirectory").ToLocalChecked(),
-               Nan::New<v8::FunctionTemplate>(SetDirectory)->GetFunction());
-  exports->Set(Nan::New("setVerbose").ToLocalChecked(),
-               Nan::New<v8::FunctionTemplate>(SetVerbose)->GetFunction());
+  NAN_EXPORT(target, triggerReport);
+  NAN_EXPORT(target, getReport);
+  NAN_EXPORT(target, setEvents);
+  NAN_EXPORT(target, setSignal);
+  NAN_EXPORT(target, setFileName);
+  NAN_EXPORT(target, setDirectory);
+  NAN_EXPORT(target, setVerbose);
 
   if (nodereport_verbose) {
 #ifdef _WIN32
