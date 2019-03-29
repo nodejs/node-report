@@ -9,7 +9,6 @@ api.setEvents(options);
 exports.triggerReport = api.triggerReport;
 exports.getReport = api.getReport;
 exports.setEvents = api.setEvents;
-exports.setCoreDump = api.setCoreDump;
 exports.setSignal = api.setSignal;
 exports.setFileName = api.setFileName;
 exports.setDirectory = api.setDirectory;
