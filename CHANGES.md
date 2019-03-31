@@ -1,3 +1,11 @@
+2019-03-31, Version 2.2.5
+=========================
+
+ * Remove `setCoreDump` (Richard Lau)
+
+ * Use nan helpers to set exports (Richard Lau)
+
+
 2019-03-17, Version 2.2.4
 =========================
 
