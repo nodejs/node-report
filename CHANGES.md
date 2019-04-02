@@ -1,3 +1,9 @@
+2019-04-02, Version 2.2.6
+=========================
+
+ * Restore uppercase C++ method names (Richard Lau)
+
+
 2019-03-31, Version 2.2.5
 =========================
 
