@@ -47,7 +47,7 @@ extern std::string commandline_string;
  * External JavaScript API for triggering a report
  *
  ******************************************************************************/
-NAN_METHOD(triggerReport) {
+NAN_METHOD(TriggerReport) {
   Nan::HandleScope scope;
   v8::Isolate* isolate = info.GetIsolate();
   char filename[NR_MAXNAME + 1] = "";
@@ -81,7 +81,7 @@ NAN_METHOD(triggerReport) {
  * External JavaScript API for returning a report
  *
  ******************************************************************************/
-NAN_METHOD(getReport) {
+NAN_METHOD(GetReport) {
   Nan::HandleScope scope;
   v8::Isolate* isolate = info.GetIsolate();
   std::ostringstream out;
@@ -100,7 +100,7 @@ NAN_METHOD(getReport) {
  * External JavaScript APIs for node-report configuration
  *
  ******************************************************************************/
-NAN_METHOD(setEvents) {
+NAN_METHOD(SetEvents) {
   Nan::Utf8String parameter(info[0]);
   v8::Isolate* isolate = info.GetIsolate();
   unsigned int previous_events = nodereport_events; // save previous settings
@@ -132,7 +132,7 @@ NAN_METHOD(setEvents) {
   }
 #endif
 }
-NAN_METHOD(setSignal) {
+NAN_METHOD(SetSignal) {
 #ifndef _WIN32
   Nan::Utf8String parameter(info[0]);
   unsigned int previous_signal = nodereport_signal; // save previous setting
@@ -145,15 +145,15 @@ NAN_METHOD(setSignal) {
   }
 #endif
 }
-NAN_METHOD(setFileName) {
+NAN_METHOD(SetFileName) {
   Nan::Utf8String parameter(info[0]);
   ProcessNodeReportFileName(*parameter);
 }
-NAN_METHOD(setDirectory) {
+NAN_METHOD(SetDirectory) {
   Nan::Utf8String parameter(info[0]);
   ProcessNodeReportDirectory(*parameter);
 }
-NAN_METHOD(setVerbose) {
+NAN_METHOD(SetVerbose) {
   Nan::Utf8String parameter(info[0]);
   nodereport_verbose = ProcessNodeReportVerboseSwitch(*parameter);
 }
@@ -426,13 +426,13 @@ NAN_MODULE_INIT(Initialize) {
   }
 #endif
 
-  NAN_EXPORT(target, triggerReport);
-  NAN_EXPORT(target, getReport);
-  NAN_EXPORT(target, setEvents);
-  NAN_EXPORT(target, setSignal);
-  NAN_EXPORT(target, setFileName);
-  NAN_EXPORT(target, setDirectory);
-  NAN_EXPORT(target, setVerbose);
+  Nan::SetMethod(target, "triggerReport", TriggerReport);
+  Nan::SetMethod(target, "getReport", GetReport);
+  Nan::SetMethod(target, "setEvents", SetEvents);
+  Nan::SetMethod(target, "setSignal", SetSignal);
+  Nan::SetMethod(target, "setFileName", SetFileName);
+  Nan::SetMethod(target, "setDirectory", SetDirectory);
+  Nan::SetMethod(target, "setVerbose", SetVerbose);
 
   if (nodereport_verbose) {
 #ifdef _WIN32
