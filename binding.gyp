@@ -13,6 +13,10 @@
           "libraries": [ "dbghelp.lib", "Netapi32.lib", "PsApi.lib", "Ws2_32.lib" ],
           "dll_files": [ "dbghelp.dll", "Netapi32.dll", "PsApi.dll", "Ws2_32.dll" ],
         }],
+        ["OS=='zos'", {
+          "cflags!": [ "-O2", "-O3" ], # till defect RTC 160544 is resolved
+          "cflags": [ "-qascii" ],
+        }],
       ],
       "defines": [
         'NODEREPORT_VERSION="<!(node -p \"require(\'./package.json\').version\")"'

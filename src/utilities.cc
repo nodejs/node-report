@@ -9,6 +9,11 @@
 #ifdef _AIX
 #include <sys/procfs.h>  // psinfo_t structure
 #endif
+#ifdef __MVS__
+extern "C" char **__getargv_a(void);
+extern "C" int __getargc(void);
+extern "C" void *_convert_e2a(void *dst, const void *src, size_t size);
+#endif
 
 namespace nodereport {
 
@@ -278,6 +283,16 @@ void SetCommandLine() {
   }
 #elif _WIN32
   commandline_string = GetCommandLine();
+#elif __MVS__
+  char **argv = __getargv_a();
+  int argc = __getargc();
+
+  commandline_string = "";
+  std::string separator = "";
+  for (int i = 0; i < argc; i++) {
+    commandline_string += separator + argv[i];
+    separator = " ";
+  }
 #endif
 }
 
@@ -288,6 +303,10 @@ void reportEndpoint(uv_handle_t* h, struct sockaddr* addr, const char* prefix,
                     std::ostringstream& out) {
   uv_getnameinfo_t endpoint;
   if (uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
+#ifdef __MVS__
+    __e2a_s(endpoint.host);
+    __e2a_s(endpoint.service);
+#endif
     out << prefix << endpoint.host << ":" << endpoint.service;
   } else {
     char host[INET6_ADDRSTRLEN];
@@ -301,6 +320,9 @@ void reportEndpoint(uv_handle_t* h, struct sockaddr* addr, const char* prefix,
       const int port = ntohs(family == AF_INET ?
                              reinterpret_cast<sockaddr_in*>(addr)->sin_port :
                              reinterpret_cast<sockaddr_in6*>(addr)->sin6_port);
+#ifdef __MVS__
+      __e2a_s(host);
+#endif
       out << prefix << host << ":" << port;
     }
   }
@@ -377,7 +399,14 @@ void reportPath(uv_handle_t* h, std::ostringstream& out) {
     }
     if (rc == 0) {
       // buffer is not null terminated.
+#ifdef __MVS__
+      char *tmpbuf = (char*)malloc(size);
+      _convert_e2a(tmpbuf, buffer, size);
+      std::string name(tmpbuf, size);
+      free(tmpbuf);
+#else
       std::string name(buffer, size);
+#endif
       out << "filename: " << name;
     }
     free(buffer);
