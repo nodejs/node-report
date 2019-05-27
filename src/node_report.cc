@@ -735,16 +735,15 @@ void PrintNativeStack(std::ostream& out) {
   char **res = backtrace_symbols(frames, size);
   if (!res)
     return;
-  int start_index = 0;
-#else
-  // Print the native frames, omitting the top 3 frames as they are in node-report code
-  int start_index = 2;
-#endif
-  for (int i = start_index; i < size; i++) {
-#ifdef __MVS__
+  for (int i = 0; i < size; i++) {
     // print traceback symbols and addresses
     out << res[i] << std::endl;
+  }
+  free(res);
 #else
+  // Print the native frames, omitting the top 3 frames as they are in node-report code
+  // backtrace_symbols_fd(frames, size, fileno(fp));
+  for (int i = 2; i < size; i++) {
     // print frame index and instruction address
     snprintf(buf, sizeof(buf), "%2d: [pc=%p] ", i-2, frames[i]);
     out << buf;
@@ -764,10 +763,7 @@ void PrintNativeStack(std::ostream& out) {
       }
     }
     out << std::endl;
-#endif
   }
-#ifdef __MVS__
-  free(res);
 #endif
 }
 #endif
