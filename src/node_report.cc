@@ -495,9 +495,6 @@ static void PrintJavaScriptStack(std::ostream& out, Isolate* isolate, DumpEvent 
       std::fflush(stack_fp);
       std::rewind(stack_fp);
       while (std::fgets(stack_buf, sizeof(stack_buf), stack_fp) != nullptr) {
-        #ifdef __MVS__
-          __e2a_s(stack_buf);
-        #endif
         out << stack_buf;
       }
       // Calling close on a file from tmpfile *should* delete it.
