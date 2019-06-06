@@ -34,7 +34,7 @@
 #endif
 // Include execinfo.h for the native backtrace API. The API is unavailable on AIX
 // and on some Linux distributions, e.g. Alpine Linux.
-#if !defined(_AIX) && !(defined(__linux__) && !defined(__GLIBC__))
+#if !defined(_AIX) && !(defined(__linux__) && !defined(__GLIBC__)) && !defined(__MVS__)
 #include <execinfo.h>
 #endif
 #include <sys/utsname.h>
@@ -46,6 +46,20 @@
 
 #ifndef _WIN32
 extern char** environ;
+#endif
+
+#ifdef __MVS__
+class __auto_ascii {
+public:
+  __auto_ascii();
+  ~__auto_ascii();
+};
+extern "C" int backtrace(void **buffer, int size);
+extern "C" char **backtrace_symbols(void *const *buffer, int size);
+extern "C" void *__dlcb_next(void *last);
+extern "C" int __dlcb_entry_name(char *buf, int size, void *dlcb);
+extern "C" void *__dlcb_entry_addr(void *dlcb);
+extern "C" int __find_file_in_path(char *out, int size, const char *envvar, const char *file);
 #endif
 
 namespace nodereport {
@@ -138,6 +152,9 @@ void TriggerNodeReport(Isolate* isolate, DumpEvent event, const char* message, c
   }
 
   // Open the report file stream for writing. Supports stdout/err, user-specified or (default) generated name
+#ifdef __MVS__
+  __auto_ascii _a;
+#endif
   std::ofstream outfile;
   std::ostream* outstream = &std::cout;
   if (!strncmp(filename, "stdout", sizeof("stdout") - 1)) {
@@ -420,12 +437,29 @@ static void PrintVersionInformation(std::ostream& out) {
     out << "\nOS version: " << os_info.sysname << " " << os_info.release << " "
         << os_info.version << "\n";
 #endif
+#if defined(__MVS__)
+    char *r;
+    __asm(" llgt %0,1208 \n"
+          " lg   %0,88(%0) \n"
+          " lg   %0,8(%0) \n"
+          " lg   %0,984(%0) \n"
+          : "=r"(r)::);
+    if (r != NULL) {
+      const char *prod = (int)r[80]==4 ? " (MVS LE)" : "";
+      out << "\nProduct " << (int)r[80] << prod << " Version " << (int)r[81] << " Release " << (int)r[82] << " Modification " << (int)r[83] << std::endl;
+    }
+    char hn[256];
+    memset(hn,0,sizeof(hn));
+    gethostname(hn,sizeof(hn));
+    out <<  "\nMachine: " << hn << " " << os_info.nodename << " " << os_info.machine << "\n";
+#else
     const char *(*libc_version)();
     *(void**)(&libc_version) = dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
     if (libc_version != NULL) {
       out << "(glibc: " << (*libc_version)() << ")" << std::endl;
     }
     out <<  "\nMachine: " << os_info.nodename << " " << os_info.machine << "\n";
+#endif
   }
 #endif
 }
@@ -694,6 +728,16 @@ void PrintNativeStack(std::ostream& out) {
     return;
   }
 
+#ifdef __MVS__
+  char **res = backtrace_symbols(frames, size);
+  if (!res)
+    return;
+  for (int i = 0; i < size; i++) {
+    // print traceback symbols and addresses
+    out << res[i] << std::endl;
+  }
+  free(res);
+#else
   // Print the native frames, omitting the top 3 frames as they are in node-report code
   // backtrace_symbols_fd(frames, size, fileno(fp));
   for (int i = 2; i < size; i++) {
@@ -717,6 +761,7 @@ void PrintNativeStack(std::ostream& out) {
     }
     out << std::endl;
   }
+#endif
 }
 #endif
 
@@ -786,7 +831,7 @@ static void PrintResourceUsage(std::ostream& out) {
   struct rusage stats;
   out << "\nProcess total resource usage:";
   if (getrusage(RUSAGE_SELF, &stats) == 0) {
-#if defined(__APPLE__) || defined(_AIX)
+#if defined(__APPLE__) || defined(_AIX) || defined(__MVS__)
     snprintf( buf, sizeof(buf), "%ld.%06d", stats.ru_utime.tv_sec, stats.ru_utime.tv_usec);
     out << "\n  User mode CPU: " << buf << " secs";
     snprintf( buf, sizeof(buf), "%ld.%06d", stats.ru_stime.tv_sec, stats.ru_stime.tv_usec);
@@ -801,11 +846,13 @@ static void PrintResourceUsage(std::ostream& out) {
     cpu_percentage = (cpu_abs / uptime) * 100.0;
     out << "\n  Average CPU Consumption : "<< cpu_percentage << "%";
     out << "\n  Maximum resident set size: ";
+#if !defined(__MVS__)
     WriteInteger(out, stats.ru_maxrss * 1024);
     out << " bytes\n  Page faults: " << stats.ru_majflt << " (I/O required) "
         << stats.ru_minflt << " (no I/O required)";
     out << "\n  Filesystem activity: " << stats.ru_inblock << " reads "
         <<  stats.ru_oublock << " writes";
+#endif
   }
 #ifdef RUSAGE_THREAD
   out << "\n\nEvent loop thread resource usage:";
@@ -893,16 +940,16 @@ const static struct {
   {"core file size (blocks)       ", RLIMIT_CORE},
   {"data seg size (kbytes)        ", RLIMIT_DATA},
   {"file size (blocks)            ", RLIMIT_FSIZE},
-#if !(defined(_AIX) || defined(__sun))
+#if !(defined(_AIX) || defined(__sun) || defined(__MVS__))
   {"max locked memory (bytes)     ", RLIMIT_MEMLOCK},
 #endif
-#ifndef __sun
+#if !(defined(__sun) || defined(__MVS__))
   {"max memory size (kbytes)      ", RLIMIT_RSS},
 #endif
   {"open files                    ", RLIMIT_NOFILE},
   {"stack size (bytes)            ", RLIMIT_STACK},
   {"cpu time (seconds)            ", RLIMIT_CPU},
-#ifndef __sun
+#if !(defined(__sun) || defined(__MVS__))
   {"max user processes            ", RLIMIT_NPROC},
 #endif
   {"virtual memory (kbytes)       ", RLIMIT_AS}
@@ -1055,6 +1102,25 @@ static void PrintLoadedLibraries(std::ostream& out, Isolate* isolate) {
   }
   // Release the handle to the process.
   CloseHandle(process_handle);
+
+#elif __MVS__
+  void *dlcb = 0;
+  const int max_path = 1024;
+  char buffer[max_path];
+  char filename[max_path];
+  char *libpath = __getenv("LIBPATH");
+  while (dlcb = __dlcb_next(dlcb), dlcb) {
+    int len = __dlcb_entry_name(buffer, sizeof(buffer), dlcb);
+    void *addr = __dlcb_entry_addr(dlcb);
+    if (0 == addr)
+      continue;
+    if (buffer[0] != '/' && libpath && __find_file_in_path(filename, sizeof(filename), libpath, buffer) > 0) {
+      snprintf(buffer + len, sizeof(buffer) - len, " => %s (0x%p)", filename, addr);
+    } else
+      snprintf(buffer + len, sizeof(buffer) - len, " (0x%p)", addr);
+    out << "  " << buffer << std::endl;
+  }
+  out << std::flush;
 #endif
 }
 

@@ -10,6 +10,7 @@ const osMap = {
   'linux': 'Linux',
   'sunos': 'SunOS',
   'win32': 'Windows',
+  'os390': 'OS/390',
 };
 
 const REPORT_SECTIONS = [
