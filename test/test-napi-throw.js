@@ -19,4 +19,4 @@ const obj = require('./napi_throw/build/Release/test_napi_throw.node');
 tap.throws(obj.throwError);
 
 const reports = common.findReports(process.pid);
-tap.equals(reports, [], 'No reports should be generated');
+tap.same(reports, [], 'No reports should be generated');
