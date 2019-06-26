@@ -36,6 +36,7 @@
 # Build directories
 /build/
 /node_modules/
+/test/*/build/
 
 # Package files
 NodeReport*.txt
