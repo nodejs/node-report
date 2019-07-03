@@ -5,6 +5,10 @@ if (process.argv[2] === 'child') {
   require('../');
 
   const list = [];
+  // tap with coverage enabled installs signal handlers that prevents the
+  // fatal error causing the process to exit. Remove them.
+  process.removeAllListeners('SIGABRT');
+  process.removeAllListeners('SIGTRAP');
   while (true) {
     const record = new MyRecord();
     list.push(record);

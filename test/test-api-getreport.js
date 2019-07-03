@@ -17,6 +17,12 @@ if (process.argv[2] === 'child') {
                  'Checking no messages on stderr');
   const reportFiles = common.findReports(child.pid);
   tap.same(reportFiles, [], 'Checking no report files were written');
+
+  // tap with coverage enabled wraps the child so adjust expected command line
+  if (process.env['SPAWN_WRAP_SHIM_ROOT']) {
+    args.unshift('.*node');
+  }
+
   tap.test('Validating report content', (t) => {
     common.validateContent(child.stdout, t, { pid: child.pid,
       commandline: process.execPath + ' ' + args.join(' ')

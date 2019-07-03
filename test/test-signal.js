@@ -8,6 +8,10 @@ if (process.argv[2] === 'child') {
   // Exit on loss of parent process
   process.on('disconnect', () => process.exit(2));
 
+  // tap with coverage enabled installs signal handlers that prevents the
+  // signal from causing the process to exit. Remove them.
+  process.removeAllListeners('SIGTERM');
+
   function busyLoop() {
     var list = [];
     for (var i = 0; i < 1e10; i++) {
