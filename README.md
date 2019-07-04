@@ -9,7 +9,9 @@ platform information and resource usage etc. With the report enabled,
 reports can be triggered on unhandled exceptions, fatal errors, signals
 and calls to a JavaScript API.
 
-Supports Node.js versions 4, 6 and 8 on AIX, Linux, MacOS, SmartOS and Windows.
+Supports Node.js versions 8, 10 and 12 on AIX, Linux, macOS, SmartOS and
+Windows. Node.js 12 and later contain similar functionality in the built-in
+[Diagnostic Report][] feature.
 
 ## Usage
 
@@ -126,3 +128,5 @@ Node.js applications which will prompt you to trigger the required event.
 ## License
 
 [Licensed under the MIT License.](LICENSE.md)
+
+[Diagnostic Report]: https://nodejs.org/dist/latest-v12.x/docs/api/report.html
