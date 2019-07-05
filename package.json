@@ -18,12 +18,12 @@
     "Richard Chamberlain <richard_chamberlain@uk.ibm.com> (https://github.com/rnchamberlain)"
   ],
   "scripts": {
-    "test": "tap --timeout=300 test/test*.js"
+    "test": "tap --no-esm --timeout=300 test/test*.js"
   },
   "bugs": {
     "url": "https://github.com/nodejs/node-report/issues"
   },
   "devDependencies": {
-    "tap": "~12.4.1"
+    "tap": "^12.7.0"
   }
 }

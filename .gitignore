@@ -43,3 +43,4 @@ node-report*.txt
 npm-debug.log
 nodereport-*.tgz
 nodereport_test.log
+package-lock.json
