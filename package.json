@@ -24,6 +24,6 @@
     "url": "https://github.com/nodejs/node-report/issues"
   },
   "devDependencies": {
-    "tap": "~12.4.1"
+    "tap": "^14.3.1"
   }
 }
