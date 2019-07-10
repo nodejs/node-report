@@ -1,3 +1,11 @@
+2019-07-10, Version 2.2.8
+=========================
+
+ * Fix npm audit warning (#136) (Richard Lau)
+
+ * Update supported Node.js versions in README.md (#134) (Richard Lau)
+
+
 2019-06-06, Version 2.2.7
 =========================
 
