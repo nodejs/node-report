@@ -10,6 +10,7 @@
 #include <sys/procfs.h>  // psinfo_t structure
 #endif
 #ifdef __MVS__
+#include <_Nascii.h>
 extern "C" char **__getargv_a(void);
 extern "C" int __getargc(void);
 extern "C" void *_convert_e2a(void *dst, const void *src, size_t size);
@@ -304,8 +305,10 @@ void reportEndpoint(uv_handle_t* h, struct sockaddr* addr, const char* prefix,
   uv_getnameinfo_t endpoint;
   if (uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
 #ifdef __MVS__
-    __e2a_s(endpoint.host);
-    __e2a_s(endpoint.service);
+    if (__isASCII() == 0) {
+      __e2a_s(endpoint.host);
+      __e2a_s(endpoint.service);
+    }
 #endif
     out << prefix << endpoint.host << ":" << endpoint.service;
   } else {
@@ -321,7 +324,9 @@ void reportEndpoint(uv_handle_t* h, struct sockaddr* addr, const char* prefix,
                              reinterpret_cast<sockaddr_in*>(addr)->sin_port :
                              reinterpret_cast<sockaddr_in6*>(addr)->sin6_port);
 #ifdef __MVS__
-      __e2a_s(host);
+      if (__isASCII() == 0) {
+        __e2a_s(host);
+      }
 #endif
       out << prefix << host << ":" << port;
     }
@@ -400,14 +405,20 @@ void reportPath(uv_handle_t* h, std::ostringstream& out) {
     if (rc == 0) {
       // buffer is not null terminated.
 #ifdef __MVS__
-      char *tmpbuf = (char*)malloc(size);
-      _convert_e2a(tmpbuf, buffer, size);
-      std::string name(tmpbuf, size);
-      free(tmpbuf);
+      if (__isASCII() == 0) {
+        char *tmpbuf = (char*)malloc(size);
+        _convert_e2a(tmpbuf, buffer, size);
+        std::string name(tmpbuf, size);
+        free(tmpbuf);
+        out << "filename: " << name;
+      } else {
+        std::string name(buffer, size);
+        out << "filename: " << name;
+      }
 #else
       std::string name(buffer, size);
-#endif
       out << "filename: " << name;
+#endif
     }
     free(buffer);
   }
