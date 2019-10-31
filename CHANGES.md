@@ -1,3 +1,9 @@
+2019-10-31, Version 2.2.9
+=========================
+
+ * Apply EBCDIC to ASCII conversions only if node wasn't built with -qASCII (#138) (Gaby Baghdadi)
+
+
 2019-07-10, Version 2.2.8
 =========================
 
