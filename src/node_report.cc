@@ -458,7 +458,14 @@ static void PrintVersionInformation(std::ostream& out) {
     if (libc_version != NULL) {
       out << "(glibc: " << (*libc_version)() << ")" << std::endl;
     }
+#if defined(_AIX)
+    char hn[256];
+    memset(hn,0,sizeof(hn));
+    gethostname(hn,sizeof(hn));
+    out <<  "\nMachine: " << hn << " " << os_info.nodename << " " << os_info.machine << "\n";
+#else
     out <<  "\nMachine: " << os_info.nodename << " " << os_info.machine << "\n";
+#endif
 #endif
   }
 #endif
