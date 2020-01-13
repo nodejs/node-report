@@ -1,3 +1,9 @@
+2020-01-13, Version 2.2.10
+==========================
+
+ * Add hostname to Machine line on AIX (#141) (Richard Lau)
+
+
 2019-10-31, Version 2.2.9
 =========================
 
