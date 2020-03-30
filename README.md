@@ -13,6 +13,9 @@ Supports Node.js versions 8, 10 and 12 on AIX, Linux, macOS, SmartOS and
 Windows. Node.js 12 and later contain similar functionality in the built-in
 [Diagnostic Report][] feature.
 
+NOTE: This repo will be archived and the npm package will be sunset
+in lieu of [Diagnostic Report][], when Node.js 10 enters End-of-Life.
+
 ## Usage
 
 ```bash
