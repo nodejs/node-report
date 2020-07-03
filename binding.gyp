@@ -14,8 +14,8 @@
           "dll_files": [ "dbghelp.dll", "Netapi32.dll", "PsApi.dll", "Ws2_32.dll" ],
         }],
         ["OS=='zos'", {
-          "cflags!": [ "-O2", "-O3" ],
-          "cflags": [ "-qascii" ],
+          "cflags!": [ "-O2", "-O3", "-qINLINE=::150:100000" ],
+          "cflags": [ "-qascii", "-qnoinline" ],
         }],
       ],
       "defines": [
