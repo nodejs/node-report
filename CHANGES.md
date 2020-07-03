@@ -1,4 +1,12 @@
-2020-01-13, Version 2.2.10
+2020-07-03, Version 2.2.11
+==========================
+
+ * build: disable compiler inlining on z/OS (#146) (Gaby Baghdadi)
+
+ * readme: add sunset info (#144) (Gireesh Punathil)
+
+
+2020-01-12, Version 2.2.10
 ==========================
 
  * Add hostname to Machine line on AIX (#141) (Richard Lau)
