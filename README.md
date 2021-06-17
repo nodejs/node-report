@@ -1,3 +1,7 @@
+THIS PROJECT HAS BEEN ARCHIVED.  
+
+Node-report is now supported as part of Node.js itself.
+
 # node-report
 
 Delivers a human-readable diagnostic summary, written to file.
