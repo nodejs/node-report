@@ -1,0 +1,13 @@
+{
+  "name": "test_napi_throw",
+  "version": "1.0.0",
+  "description": "Throw an error.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "node-gyp rebuild"
+  },
+  "author": "",
+  "license": "ISC",
+  "repository": "https://github.com/nodejs/node-report",
+  "gypfile": true
+}
