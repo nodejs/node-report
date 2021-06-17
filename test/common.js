@@ -22,6 +22,10 @@ const REPORT_SECTIONS = [
 
 const reNewline = '(?:\\r*\\n)';
 
+const escapeRegex = (s) => {
+  return s.replace(/[\.+]/g, '\\$&');
+}
+
 exports.findReports = (pid) => {
   // Default filenames are of the form node-report.<date>.<time>.<pid>.<seq>.txt
   const format = '^node-report\\.\\d+\\.\\d+\\.' + pid + '\\.\\d+\\.txt$';
@@ -114,11 +118,11 @@ exports.validateContent = function validateContent(data, t, options) {
     if (c !== 'node') {
       if (expectedVersions.indexOf(c) === -1) {
         t.notMatch(nodeReportSection,
-                   new RegExp(c + ': ' + process.versions[c]),
+                   new RegExp(c + ': ' + escapeRegex(process.versions[c])),
                    'Node Report header section does not contain ' + c + ' version');
       } else {
         t.match(nodeReportSection,
-                new RegExp(c + ': ' + process.versions[c]),
+                new RegExp(c + ': ' + escapeRegex(process.versions[c])),
                 'Node Report header section contains expected ' + c + ' version');
       }
     }
